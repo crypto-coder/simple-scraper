@@ -137,25 +137,15 @@
       "name": "Scrape Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "const config = $('Split Pages').item.json;\nreturn [{\n  json: {\n    ...config,\n    text: $json.text,\n    textLength: $json.textLength,\n  },\n}];"
-      },
-      "id": "a1b2c3d4-0009-4000-8000-000000000009",
-      "name": "Attach Scrape Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1760, 300]
+      "position": [1650, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.scraperBaseUrl }}/api/workflow/summarize",
+        "url": "={{ $('Split Pages').item.json.scraperBaseUrl }}/api/workflow/summarize",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ text: $json.text, directions: $json.directions, summarizePrompt: $json.summarizePrompt || undefined, fieldPrompt: $json.fieldPrompt || undefined, localLlmModel: $json.localLlmModel }) }}",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text, directions: $('Split Pages').item.json.directions, summarizePrompt: $('Split Pages').item.json.summarizePrompt || undefined, fieldPrompt: $('Split Pages').item.json.fieldPrompt || undefined, localLlmModel: $('Split Pages').item.json.localLlmModel }) }}",
         "options": { "timeout": 300000 }
       },
       "id": "a1b2c3d4-0010-4000-8000-000000000010",
@@ -166,7 +156,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const config = $('Attach Summary').item.json;\nreturn [{\n  json: {\n    ...config,\n    summary: $json.summary,\n    summaryLength: $json.summaryLength,\n  },\n}];"
+        "jsCode": "const ctx = $('Split Pages').item.json;\nconst scrape = $('Scrape Page').item.json;\nreturn [{\n  json: {\n    ...ctx,\n    pageUrl: ctx.pageUrl,\n    text: scrape.text,\n    textLength: scrape.textLength,\n    summary: $json.summary,\n    summaryLength: $json.summaryLength,\n  },\n}];"
       },
       "id": "a1b2c3d4-0011-4000-8000-000000000011",
       "name": "Attach Summary",
@@ -338,9 +328,6 @@
       "main": [[{ "node": "Scrape Page", "type": "main", "index": 0 }]]
     },
     "Scrape Page": {
-      "main": [[{ "node": "Attach Scrape Result", "type": "main", "index": 0 }]]
-    },
-    "Attach Scrape Result": {
       "main": [[{ "node": "Summarize Page", "type": "main", "index": 0 }]]
     },
     "Summarize Page": {

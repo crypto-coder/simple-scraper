@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-MARKER="/home/node/.n8n/.website-scraper-imported-v2"
+MARKER="/home/node/.n8n/.website-scraper-imported-v3"
 WORKFLOW="/import/website-scraper.workflow.json"
 WORKFLOW_ID="a1b2c3d4-0100-4000-8000-000000000100"
 

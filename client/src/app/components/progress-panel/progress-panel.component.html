@@ -1,0 +1,36 @@
+@if (progress) {
+  <div class="progress-panel">
+    <header class="panel-header">
+      <div>
+        <h2>Scrape Progress</h2>
+        @if (isComplete) {
+          <span class="status-badge complete">All tasks complete</span>
+        } @else {
+          <span class="status-badge running">Running</span>
+        }
+      </div>
+      <button type="button" class="close-btn" (click)="dismiss.emit()" aria-label="Close">&times;</button>
+    </header>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" [style.width.%]="percent"></div>
+    </div>
+    <p class="progress-text">
+      {{ progress.processedUrls }} / {{ progress.totalUrls }} websites processed
+      @if (progress.currentUrl && !isComplete) {
+        <span class="current-url"> — currently: {{ progress.currentUrl }}</span>
+      }
+    </p>
+
+    <div class="log-window">
+      @for (entry of progress.logs; track entry.timestamp + entry.message) {
+        <div class="log-line" [class]="logClass(entry.level)">
+          <span class="log-time">{{ formatTime(entry.timestamp) }}</span>
+          <span class="log-msg">{{ entry.message }}</span>
+        </div>
+      } @empty {
+        <div class="log-line log-info">Waiting for updates...</div>
+      }
+    </div>
+  </div>
+}

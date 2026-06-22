@@ -1,0 +1,17 @@
+services:
+  site-scraper:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      CLOUD_LLM_URL: ${CLOUD_LLM_URL:-}
+      CLOUD_LLM_API_KEY: ${CLOUD_LLM_API_KEY:-}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma4:e4b}
+      OUTPUT_FOLDER: /app/output
+      OLLAMA_MODELS: /app/models
+    volumes:
+      - ./runtime/models:/app/models
+      - ./runtime/output:/app/output
+      - ./runtime/data:/app/data
+    restart: unless-stopped
+

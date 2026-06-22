@@ -1,0 +1,85 @@
+<div class="app">
+  <header class="header">
+    <h1>Site Scraper</h1>
+    <button type="button" class="gear-btn" (click)="openSettings()" [disabled]="isRunning" aria-label="Settings">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="main">
+    <form class="scrape-form" (ngSubmit)="onScrapeClick()">
+      <label class="field">
+        <span class="label">Website URLs</span>
+        <span class="hint">Paste URLs — they will be split onto separate lines automatically</span>
+        <textarea
+          rows="6"
+          [(ngModel)]="urlsText"
+          name="urls"
+          [disabled]="isRunning"
+          placeholder="https://example.com&#10;https://another-site.org"
+          (paste)="onUrlsPaste($event)"
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span class="label">Output Fields</span>
+        <span class="hint">One field per line — values discovered across all spidered pages</span>
+        <textarea
+          rows="5"
+          [(ngModel)]="fieldsText"
+          name="fields"
+          [disabled]="isRunning"
+          placeholder="company_name&#10;phone_number&#10;email"
+          (paste)="onFieldsPaste($event)"
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span class="label">Prompt</span>
+        <span class="hint">General directions for scraping, spidering, summarizing, and output</span>
+        <textarea
+          rows="4"
+          [(ngModel)]="prompt"
+          name="prompt"
+          [disabled]="isRunning"
+          placeholder="Spider all pages on the same domain. Extract contact information and product details..."
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span class="label">Local LLM</span>
+        <select [(ngModel)]="selectedModel" name="model" [disabled]="isRunning">
+          @for (model of models; track model.id) {
+            <option [value]="model.id">{{ model.label }}</option>
+          }
+        </select>
+      </label>
+
+      <button
+        type="submit"
+        class="scrape-btn"
+        [class.stop]="isRunning"
+      >
+        {{ isRunning ? 'STOP' : 'Scrape' }}
+      </button>
+    </form>
+
+    @if (showProgress && progress) {
+      <app-progress-panel
+        [progress]="progress"
+        (dismiss)="onDismissProgress()"
+      />
+    }
+  </main>
+
+  @if (showSettings) {
+    <app-settings-modal
+      [settings]="settings"
+      (save)="onSettingsSave($event)"
+      (cancel)="onSettingsCancel()"
+    />
+  }
+</div>

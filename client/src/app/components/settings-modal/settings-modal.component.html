@@ -1,0 +1,33 @@
+<div class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal" role="dialog" aria-labelledby="settings-title">
+    <header class="modal-header">
+      <h2 id="settings-title">Settings</h2>
+    </header>
+    <div class="modal-body">
+      <label>
+        <span>CLOUD_LLM_URL</span>
+        <input type="url" [(ngModel)]="settings.CLOUD_LLM_URL" placeholder="https://api.openai.com/v1" />
+      </label>
+      <label>
+        <span>CLOUD_LLM_API_KEY</span>
+        <input type="password" [(ngModel)]="settings.CLOUD_LLM_API_KEY" placeholder="sk-..." autocomplete="off" />
+      </label>
+      <label>
+        <span>LOCAL_LLM_MODEL</span>
+        <input type="text" [(ngModel)]="settings.LOCAL_LLM_MODEL" placeholder="gemma4:e4b" />
+      </label>
+      <label>
+        <span>OLLAMA_MODELS</span>
+        <input type="text" [(ngModel)]="settings.OLLAMA_MODELS" placeholder="./models" />
+      </label>
+      <label>
+        <span>OUTPUT_FOLDER</span>
+        <input type="text" [(ngModel)]="settings.OUTPUT_FOLDER" placeholder="./output" />
+      </label>
+    </div>
+    <footer class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="onSave()">Save</button>
+    </footer>
+  </div>
+</div>

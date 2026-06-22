@@ -1,0 +1,9 @@
+node_modules
+dist
+out-tsc
+.env
+data/
+models/
+output/
+*.log
+client/.angular

@@ -1,0 +1,11 @@
+node_modules
+dist
+out-tsc
+.env
+data
+models
+output
+*.log
+.git
+client/dist
+server/dist

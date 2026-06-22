@@ -13,6 +13,12 @@ export interface ScrapedPage {
   text: string;
 }
 
+export interface CrawledPage {
+  url: string;
+  html: string;
+  text: string;
+}
+
 function normalizeUrl(href: string, base: string): string | null {
   try {
     const resolved = new URL(href, base);
@@ -41,7 +47,7 @@ async function fetchPage(url: string): Promise<string> {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'SiteScraper/1.0 (+https://github.com/site-scraper)',
+        'User-Agent': 'SiteScraper/1.0 (+https://github.com/simple-scraper)',
         Accept: 'text/html,application/xhtml+xml',
       },
       redirect: 'follow',
@@ -57,11 +63,10 @@ async function fetchPage(url: string): Promise<string> {
   }
 }
 
-function extractVisibleText(html: string): string {
+export function extractVisibleText(html: string): string {
   const $ = cheerio.load(html);
   $('script, style, noscript, svg, iframe').remove();
-  const text = $('body').text().replace(/\s+/g, ' ').trim();
-  return text;
+  return $('body').text().replace(/\s+/g, ' ').trim();
 }
 
 function extractLinks(html: string, pageUrl: string): string[] {
@@ -76,15 +81,14 @@ function extractLinks(html: string, pageUrl: string): string[] {
   return links;
 }
 
-export async function spiderWebsite(
-  startUrl: string,
-  tempDir: string
-): Promise<ScrapedPage[]> {
-  fs.mkdirSync(tempDir, { recursive: true });
+/** BFS crawl of same-origin pages; returns each page's URL, HTML, and extracted text. */
+export async function crawlWebsite(startUrl: string): Promise<CrawledPage[]> {
+  const start = normalizeUrl(startUrl, startUrl);
+  if (!start) throw new Error(`Invalid start URL: ${startUrl}`);
 
   const visited = new Set<string>();
-  const queue: string[] = [normalizeUrl(startUrl, startUrl)!];
-  const pages: ScrapedPage[] = [];
+  const queue: string[] = [start];
+  const pages: CrawledPage[] = [];
 
   while (queue.length > 0 && pages.length < MAX_PAGES) {
     const current = queue.shift()!;
@@ -98,20 +102,50 @@ export async function spiderWebsite(
       continue;
     }
 
-    const text = extractVisibleText(html);
-    const slug = Buffer.from(current).toString('base64url').slice(0, 32);
-    const htmlPath = path.join(tempDir, `${slug}.html`);
-    const textPath = path.join(tempDir, `${slug}.txt`);
-    fs.writeFileSync(htmlPath, html, 'utf-8');
-    fs.writeFileSync(textPath, text, 'utf-8');
-
-    pages.push({ url: current, htmlPath, textPath, text });
+    pages.push({ url: current, html, text: extractVisibleText(html) });
 
     for (const link of extractLinks(html, current)) {
-      if (sameOrigin(startUrl, link) && !visited.has(link)) {
+      if (sameOrigin(start, link) && !visited.has(link)) {
         queue.push(link);
       }
     }
+  }
+
+  return pages;
+}
+
+/** Discover page URLs via same-origin spider (no temp files). */
+export async function discoverPageUrls(startUrl: string): Promise<string[]> {
+  const pages = await crawlWebsite(startUrl);
+  return pages.map((p) => p.url);
+}
+
+/** Fetch and extract visible text from a single page. */
+export async function scrapePageText(url: string): Promise<{ url: string; text: string }> {
+  const html = await fetchPage(url);
+  return { url, text: extractVisibleText(html) };
+}
+
+export async function spiderWebsite(
+  startUrl: string,
+  tempDir: string
+): Promise<ScrapedPage[]> {
+  fs.mkdirSync(tempDir, { recursive: true });
+  const crawled = await crawlWebsite(startUrl);
+  const pages: ScrapedPage[] = [];
+
+  for (const page of crawled) {
+    const slug = Buffer.from(page.url).toString('base64url').slice(0, 32);
+    const htmlPath = path.join(tempDir, `${slug}.html`);
+    const textPath = path.join(tempDir, `${slug}.txt`);
+    fs.writeFileSync(htmlPath, page.html, 'utf-8');
+    fs.writeFileSync(textPath, page.text, 'utf-8');
+    pages.push({
+      url: page.url,
+      htmlPath,
+      textPath,
+      text: page.text,
+    });
   }
 
   return pages;

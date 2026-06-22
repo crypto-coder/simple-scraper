@@ -1,18 +1,41 @@
 services:
+  runtime-init:
+    image: alpine:3.21
+    user: "0:0"
+    environment:
+      RUNTIME_UID: ${RUNTIME_UID:-1000}
+      RUNTIME_GID: ${RUNTIME_GID:-1000}
+      RUNTIME_BASE: /data
+    volumes:
+      - ./runtime:/data
+      - ./scripts/init-runtime-dirs.sh:/init-runtime-dirs.sh:ro
+    entrypoint: ["/bin/sh", "/init-runtime-dirs.sh"]
+    restart: "no"
+
   n8n-import:
-    image: docker.n8n.io/n8nio/n8n:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.n8n
+    image: site_scraper-n8n:latest
     user: "1000:1000"
+    env_file:
+      - config/n8n.env
     volumes:
       - ./runtime/n8n:/home/node/.n8n
       - ./n8n/workflows:/import:ro
       - ./n8n/import-workflow.sh:/import-workflow.sh:ro
     entrypoint: ["/bin/sh", "/import-workflow.sh"]
+    depends_on:
+      runtime-init:
+        condition: service_completed_successfully
     restart: "no"
 
   simple-scraper:
     build: .
     ports:
       - "3000:3000"
+    env_file:
+      - config/n8n.env
     environment:
       CLOUD_LLM_URL: ${CLOUD_LLM_URL:-}
       CLOUD_LLM_API_KEY: ${CLOUD_LLM_API_KEY:-}
@@ -23,13 +46,13 @@ services:
       N8N_INTERNAL_URL: http://n8n:5678
       N8N_WEBHOOK_SCRAPE_URL: http://n8n:5678/webhook/scrape
       SCRAPER_BASE_URL: http://simple-scraper:3000
-      N8N_OWNER_EMAIL: ${N8N_OWNER_EMAIL:-owner@simple-scraper.local}
-      N8N_OWNER_PASSWORD: ${N8N_OWNER_PASSWORD:-simple-scraper}
     volumes:
       - ./runtime/models:/app/models
       - ./runtime/output:/app/output
       - ./runtime/data:/app/data
     depends_on:
+      runtime-init:
+        condition: service_completed_successfully
       n8n-import:
         condition: service_completed_successfully
       n8n:
@@ -37,8 +60,13 @@ services:
     restart: unless-stopped
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.n8n
+    image: site_scraper-n8n:latest
     user: "1000:1000"
+    env_file:
+      - config/n8n.env
     environment:
       N8N_HOST: 0.0.0.0
       N8N_PORT: 5678
@@ -48,7 +76,6 @@ services:
       WEBHOOK_URL: http://localhost:3000/workflow/
       N8N_PROXY_HOPS: 1
       N8N_SECURE_COOKIE: "false"
-      N8N_PYTHON_ENABLED: "false"
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
@@ -57,11 +84,6 @@ services:
       N8N_DIAGNOSTICS_CONFIG_FRONTEND: ""
       N8N_DIAGNOSTICS_CONFIG_BACKEND: ""
       GENERIC_TIMEZONE: ${TZ:-UTC}
-      N8N_INSTANCE_OWNER_MANAGED_BY_ENV: "true"
-      N8N_INSTANCE_OWNER_EMAIL: ${N8N_OWNER_EMAIL:-owner@simple-scraper.local}
-      N8N_INSTANCE_OWNER_FIRST_NAME: ${N8N_OWNER_FIRST_NAME:-Simple}
-      N8N_INSTANCE_OWNER_LAST_NAME: ${N8N_OWNER_LAST_NAME:-Scraper}
-      N8N_INSTANCE_OWNER_PASSWORD_HASH: ${N8N_OWNER_PASSWORD_HASH}
     volumes:
       - type: bind
         source: ./runtime/n8n
@@ -76,6 +98,8 @@ services:
     expose:
       - "5678"
     depends_on:
+      runtime-init:
+        condition: service_completed_successfully
       n8n-import:
         condition: service_completed_successfully
     restart: unless-stopped

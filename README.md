@@ -16,18 +16,37 @@ A Docker-packaged website scraper with an Angular UI, a local small LLM (via Oll
 
 ```bash
 cp .env.example .env
-# Edit .env with your CLOUD_LLM_URL and CLOUD_LLM_API_KEY if needed
+# Edit .env for CLOUD_LLM_* if needed. n8n owner defaults are in config/n8n.env.
 
-mkdir -p runtime/n8n runtime/n8n-files
-# If n8n reports permission errors on first start (Linux/WSL):
-# sudo chown -R 1000:1000 runtime/n8n runtime/n8n-files
+docker compose up --build
+```
 
+The **`runtime-init`** service runs first on every `docker compose up`. It executes `scripts/init-runtime-dirs.sh`, which creates `./runtime/{n8n,n8n-files,models,output,data}` and assigns ownership to uid **1000** (required by n8n). No manual `mkdir` or `chown` is needed on a new machine.
+
+To run the init step alone:
+
+```bash
+docker compose run --rm runtime-init
+```
+
+If you still see `EACCES` under `./runtime/n8n` (e.g. after copying data from another host as root):
+
+```bash
+docker compose run --rm runtime-init
 docker compose up --build
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Use the **Scraper** and **Workflow** tabs to switch between the scrape form and the n8n workspace.
 
-The **Workflow** tab signs in automatically using the n8n owner account from `.env` (`N8N_OWNER_*`). No manual setup or login is required after the first stack start.
+The **Workflow** tab signs in automatically using the n8n owner account from `config/n8n.env`. No manual setup or login is required after the first stack start.
+
+To change the default n8n owner password, edit `config/n8n.env` and regenerate the bcrypt hash:
+
+```bash
+node -e "console.log(require('bcryptjs').hashSync('your-password', 10))"
+```
+
+Update both `N8N_OWNER_PASSWORD` and `N8N_INSTANCE_OWNER_PASSWORD_HASH` in that file. In the hash line, escape every `$` as `$$` (e.g. `$2b$10$...` becomes `$$2b$$10$$...`) so Docker Compose does not strip the value.
 
 If the browser console shows `A listener indicated an asynchronous response...`, that message comes from a **browser extension** (password managers, VPN, ad blockers), not from this app. Try an incognito window with extensions disabled to confirm. The iframe is also kept alive across tab switches so extensions are not re-triggered on every visit.
 
@@ -86,11 +105,8 @@ ls -la runtime/models/blobs
 | `OLLAMA_MODELS` | `./models` | Where Ollama stores downloaded models |
 | `OLLAMA_KEEP_ALIVE` | `-1` | How long Ollama keeps models loaded in memory (`-1` = indefinitely) |
 | `OUTPUT_FOLDER` | `./output` | Where scraped JSON results are written |
-| `N8N_OWNER_EMAIL` | `owner@simple-scraper.local` | n8n owner email (auto-provisioned) |
-| `N8N_OWNER_PASSWORD` | `simple-scraper` | n8n owner password (used for Workflow tab auto-login) |
-| `N8N_OWNER_PASSWORD_HASH` | *(see `.env.example`)* | bcrypt hash of `N8N_OWNER_PASSWORD` for n8n startup |
-| `N8N_OWNER_FIRST_NAME` | `Simple` | n8n owner first name |
-| `N8N_OWNER_LAST_NAME` | `Scraper` | n8n owner last name |
+
+n8n owner credentials (`N8N_OWNER_*`, `N8N_INSTANCE_OWNER_*`) are in **`config/n8n.env`**, not `.env`.
 
 These can also be changed from the **Settings** modal in the UI (persisted to `/app/data/settings.json` inside the container).
 

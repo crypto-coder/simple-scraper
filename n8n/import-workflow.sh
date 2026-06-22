@@ -7,6 +7,14 @@ WORKFLOW_ID="a1b2c3d4-0100-4000-8000-000000000100"
 
 mkdir -p /home/node/.n8n
 
+if ! touch /home/node/.n8n/.write-test 2>/dev/null; then
+  echo "ERROR: Cannot write to /home/node/.n8n (host path ./runtime/n8n)."
+  echo "Run: docker compose run --rm runtime-init"
+  echo "Then: docker compose up --build"
+  exit 1
+fi
+rm -f /home/node/.n8n/.write-test
+
 if [ -f "$MARKER" ]; then
   echo "Website Scraper workflow already imported."
   exit 0

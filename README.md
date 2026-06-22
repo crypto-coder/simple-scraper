@@ -156,7 +156,7 @@ On first Docker start, the `n8n-import` service automatically imports and activa
 **Re-import after workflow changes** (one-time):
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v3
+rm -f runtime/n8n/.website-scraper-imported-v6
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```

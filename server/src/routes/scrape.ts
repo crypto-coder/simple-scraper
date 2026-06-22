@@ -1,11 +1,19 @@
 import { Router } from 'express';
 import { jobManager } from '../services/jobManager';
+import { DEFAULT_FIELD_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from '../prompts';
 import { LOCAL_LLM_OPTIONS, type ScrapeRequest } from '../types';
 
 export const scrapeRouter = Router();
 
 scrapeRouter.get('/models', (_req, res) => {
   res.json(LOCAL_LLM_OPTIONS);
+});
+
+scrapeRouter.get('/prompt-defaults', (_req, res) => {
+  res.json({
+    summarizePrompt: DEFAULT_SUMMARIZE_PROMPT,
+    fieldPrompt: DEFAULT_FIELD_PROMPT,
+  });
 });
 
 scrapeRouter.get('/progress', (_req, res) => {
@@ -46,6 +54,8 @@ scrapeRouter.post('/start', async (req, res) => {
       urls: body.urls.map((u) => u.trim()).filter(Boolean),
       fields: body.fields.map((f) => f.trim()).filter(Boolean),
       prompt: body.prompt ?? '',
+      summarizePrompt: body.summarizePrompt ?? DEFAULT_SUMMARIZE_PROMPT,
+      fieldPrompt: body.fieldPrompt ?? DEFAULT_FIELD_PROMPT,
       localLlmModel: body.localLlmModel ?? 'gemma4:e4b',
     });
 

@@ -1,4 +1,11 @@
 import { getSettings } from '../config';
+import {
+  DEFAULT_FIELD_PROMPT,
+  DEFAULT_SUMMARIZE_PROMPT,
+  fieldToQuestion,
+  parseFieldAnswer,
+  renderPromptTemplate,
+} from '../prompts';
 
 const OLLAMA_BASE = process.env.OLLAMA_HOST ?? 'http://127.0.0.1:11434';
 
@@ -50,14 +57,13 @@ export async function generate(prompt: string, model?: string): Promise<string> 
   return (data.response ?? '').trim();
 }
 
-export async function summarizeText(text: string, model?: string): Promise<string> {
-  const truncated = text.length > 12000 ? text.slice(0, 12000) + '\n...[truncated]' : text;
-  const prompt = `Summarize the following web page text, preserving all factual details like names, dates, numbers, addresses, and product info. Be concise but complete.
-
-TEXT:
-${truncated}
-
-SUMMARY:`;
+export async function summarizeText(
+  text: string,
+  template: string = DEFAULT_SUMMARIZE_PROMPT,
+  model?: string
+): Promise<string> {
+  const truncated = text.length > 30000 ? text.slice(0, 30000) + '\n...[truncated]' : text;
+  const prompt = renderPromptTemplate(template, { text: truncated });
   return generate(prompt, model);
 }
 
@@ -65,39 +71,17 @@ export async function answerFieldQuestion(
   field: string,
   context: string,
   directions: string,
+  template: string = DEFAULT_FIELD_PROMPT,
   model?: string
 ): Promise<{ present: boolean; value: string | null; confidence: string }> {
-  const prompt = `You are extracting structured data from website content.
-
-General directions: ${directions}
-
-Field to find: "${field}"
-
-Content:
-${context}
-
-Answer ONLY with valid JSON in this exact shape:
-{"present": true|false, "value": "<extracted value or null>", "confidence": "high"|"medium"|"low"}
-
-JSON:`;
+  const fieldQuestion = fieldToQuestion(field);
+  const prompt = renderPromptTemplate(template, {
+    field,
+    fieldQuestion,
+    directions,
+    context,
+  });
 
   const raw = await generate(prompt, model);
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    return { present: false, value: null, confidence: 'low' };
-  }
-  try {
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      present?: boolean;
-      value?: string | null;
-      confidence?: string;
-    };
-    return {
-      present: Boolean(parsed.present),
-      value: parsed.value ?? null,
-      confidence: parsed.confidence ?? 'low',
-    };
-  } catch {
-    return { present: false, value: null, confidence: 'low' };
-  }
+  return parseFieldAnswer(raw);
 }

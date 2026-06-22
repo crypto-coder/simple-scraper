@@ -56,7 +56,11 @@ export async function processUrl(
   if (combinedText.length > 8000) {
     log('info', `Summarizing extracted text for ${url} (${combinedText.length} chars)`);
     try {
-      context = await summarizeText(combinedText, request.localLlmModel);
+      context = await summarizeText(
+        combinedText,
+        request.summarizePrompt,
+        request.localLlmModel
+      );
       log('success', `Summarized text to ${context.length} chars`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -76,6 +80,7 @@ export async function processUrl(
         field,
         context,
         request.prompt,
+        request.fieldPrompt,
         request.localLlmModel
       );
 

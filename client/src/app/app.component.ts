@@ -18,6 +18,8 @@ export class AppComponent implements OnInit, OnDestroy {
   urlsText = '';
   fieldsText = '';
   prompt = '';
+  summarizePrompt = '';
+  fieldPrompt = '';
   selectedModel = 'gemma4:e4b';
   models: LlmOption[] = [];
 
@@ -44,6 +46,12 @@ export class AppComponent implements OnInit, OnDestroy {
     this.scrapeService.startStream();
     this.subs.add(
       this.scrapeService.getModels().subscribe((m) => (this.models = m))
+    );
+    this.subs.add(
+      this.scrapeService.getPromptDefaults().subscribe((d) => {
+        this.summarizePrompt = d.summarizePrompt;
+        this.fieldPrompt = d.fieldPrompt;
+      })
     );
     this.subs.add(
       this.settingsService.getSettings().subscribe((s) => (this.settings = s))
@@ -125,6 +133,8 @@ export class AppComponent implements OnInit, OnDestroy {
         urls,
         fields,
         prompt: this.prompt,
+        summarizePrompt: this.summarizePrompt,
+        fieldPrompt: this.fieldPrompt,
         localLlmModel: this.selectedModel,
       })
       .subscribe({

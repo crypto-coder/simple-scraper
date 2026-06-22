@@ -1,4 +1,4 @@
-# Site Scraper
+# Simple Scraper
 
 A Docker-packaged website scraper with an Angular UI, a local small LLM (via Ollama), and an optional cloud LLM for complex formatting.
 
@@ -93,7 +93,7 @@ For each URL (processed sequentially):
 ## Project Structure
 
 ```
-site_scraper/
+simple-scraper/
 ├── client/          Angular frontend
 ├── server/          Express + TypeScript API & scraper engine
 ├── Dockerfile       Multi-stage build (Angular + Node + Ollama)

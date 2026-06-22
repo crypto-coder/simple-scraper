@@ -19,6 +19,8 @@ export interface ScrapeRequest {
   urls: string[];
   fields: string[];
   prompt: string;
+  summarizePrompt: string;
+  fieldPrompt: string;
   localLlmModel: string;
 }
 

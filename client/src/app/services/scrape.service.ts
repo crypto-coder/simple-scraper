@@ -1,7 +1,7 @@
 import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
-import type { LlmOption, ScrapeProgress, ScrapeRequest } from '../models';
+import type { LlmOption, PromptDefaults, ScrapeProgress, ScrapeRequest } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ScrapeService {
@@ -18,6 +18,10 @@ export class ScrapeService {
 
   getModels(): Observable<LlmOption[]> {
     return this.http.get<LlmOption[]>(`${this.base}/models`);
+  }
+
+  getPromptDefaults(): Observable<PromptDefaults> {
+    return this.http.get<PromptDefaults>(`${this.base}/prompt-defaults`);
   }
 
   getProgress(): Observable<ScrapeProgress> {

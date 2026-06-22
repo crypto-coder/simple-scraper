@@ -52,7 +52,7 @@ If the browser console shows `A listener indicated an asynchronous response...`,
 
 When opening the app from another machine by IP (not `localhost`), set `PUBLIC_BASE_URL` in `.env` to the URL you use in the browser, for example `http://10.32.1.124:3000`. This keeps n8n editor and webhook links consistent. Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are expected in that setup and do not block workflow execution.
 
-If running a workflow in the n8n editor shows **Lost connection to the server**, rebuild after pulling the latest code — the proxy must rewrite WebSocket paths under `/workflow/` correctly.
+If running a workflow in the n8n editor shows **Lost connection to the server** or repeating **Origin header does NOT match** errors in the n8n logs, rebuild after pulling the latest code — the proxy must forward the browser `Host` to n8n on WebSocket upgrades (not the internal `n8n:5678` hostname).
 
 If you previously started n8n and saw the owner setup wizard, reset n8n data once so the env-provisioned owner can be applied:
 

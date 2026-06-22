@@ -1,4 +1,6 @@
 import type { Express } from 'express';
+import type { IncomingMessage } from 'http';
+import type { ClientRequest } from 'http';
 import type { RequestHandler } from 'http-proxy-middleware';
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware';
 
@@ -15,12 +17,24 @@ function rewriteN8nPath(path: string): string {
   return rewritten.startsWith('/') ? rewritten : `/${rewritten}`;
 }
 
+function applyN8nProxyHeaders(proxyReq: ClientRequest, req: IncomingMessage): void {
+  const host = req.headers.host;
+  if (host) {
+    // n8n validates Origin against Host / X-Forwarded-Host — keep the browser host.
+    proxyReq.setHeader('Host', host);
+    proxyReq.setHeader('X-Forwarded-Host', host);
+  }
+  const proto = req.headers['x-forwarded-proto'] ?? 'http';
+  proxyReq.setHeader('X-Forwarded-Proto', String(proto));
+  proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress ?? '127.0.0.1');
+}
+
 export function mountN8nProxy(app: Express): RequestHandler {
   const target = process.env.N8N_INTERNAL_URL ?? 'http://127.0.0.1:5678';
 
   const proxy = createProxyMiddleware({
     target,
-    changeOrigin: true,
+    changeOrigin: false,
     ws: true,
     // Match at app root so WebSocket upgrades keep the full /workflow/... path.
     pathFilter: N8N_PATH,
@@ -28,13 +42,10 @@ export function mountN8nProxy(app: Express): RequestHandler {
     selfHandleResponse: true,
     on: {
       proxyReq: (proxyReq, req) => {
-        const host = req.headers.host;
-        if (host) {
-          proxyReq.setHeader('X-Forwarded-Host', host);
-        }
-        const proto = req.headers['x-forwarded-proto'] ?? 'http';
-        proxyReq.setHeader('X-Forwarded-Proto', String(proto));
-        proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress ?? '127.0.0.1');
+        applyN8nProxyHeaders(proxyReq, req);
+      },
+      proxyReqWs: (proxyReq, req) => {
+        applyN8nProxyHeaders(proxyReq, req);
       },
       proxyRes: responseInterceptor(async (responseBuffer, proxyRes) => {
         const contentType = proxyRes.headers['content-type'] ?? '';

@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
+import http from 'http';
 import path from 'path';
 import { mountN8nProxy } from './n8nProxy';
 import { scrapeRouter } from './routes/scrape';
@@ -21,7 +22,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-mountN8nProxy(app);
+const n8nProxy = mountN8nProxy(app);
 
 const clientDist = path.join(__dirname, '..', 'public');
 if (fs.existsSync(clientDist)) {
@@ -31,6 +32,9 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = http.createServer(app);
+server.on('upgrade', n8nProxy.upgrade);
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Site Scraper server listening on http://0.0.0.0:${PORT}`);
 });

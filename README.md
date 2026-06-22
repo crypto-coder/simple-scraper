@@ -50,6 +50,10 @@ Update both `N8N_OWNER_PASSWORD` and `N8N_INSTANCE_OWNER_PASSWORD_HASH` in that 
 
 If the browser console shows `A listener indicated an asynchronous response...`, that message comes from a **browser extension** (password managers, VPN, ad blockers), not from this app. Try an incognito window with extensions disabled to confirm. The iframe is also kept alive across tab switches so extensions are not re-triggered on every visit.
 
+When opening the app from another machine by IP (not `localhost`), set `PUBLIC_BASE_URL` in `.env` to the URL you use in the browser, for example `http://10.32.1.124:3000`. This keeps n8n editor and webhook links consistent. Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are expected in that setup and do not block workflow execution.
+
+If running a workflow in the n8n editor shows **Lost connection to the server**, rebuild after pulling the latest code — the proxy must rewrite WebSocket paths under `/workflow/` correctly.
+
 If you previously started n8n and saw the owner setup wizard, reset n8n data once so the env-provisioned owner can be applied:
 
 ```bash

@@ -110,6 +110,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
   setActiveTab(tab: 'scraper' | 'workflow'): void {
     this.activeTab = tab;
+    if (tab === 'workflow') {
+      this.scrapeService.stopStream();
+    } else {
+      this.scrapeService.startStream();
+    }
   }
 
   onSettingsSave(updated: AppSettings): void {

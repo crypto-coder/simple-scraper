@@ -77,55 +77,100 @@ export interface PageWorkflowResult {
   fields: FieldResult[];
 }
 
-export async function workflowSaveResult(
-  startUrl: string,
-  pageResults: PageWorkflowResult[],
-  config: WorkflowConfig = {}
-): Promise<{ outputPath: string; document: Record<string, unknown> }> {
-  const allFields = mergeFieldsAcrossPages(pageResults);
-  const document = await formatOutputWithCloudLlm(
-    startUrl,
-    allFields,
-    config.directions ?? '',
-    pageResults.length
-  );
+export interface FieldFinding {
+  field: string;
+  value: string;
+  pageUrl: string;
+  confidence?: string;
+}
 
-  const enriched = {
-    ...document,
+export interface WorkflowSaveInput {
+  requestedFields: string[];
+  findings: FieldFinding[];
+  pageResults: PageWorkflowResult[];
+}
+
+/** Build final JSON: each field references page URL(s) where found, or "NOT FOUND". */
+export function buildFinalOutputDocument(
+  startUrl: string,
+  requestedFields: string[],
+  findings: FieldFinding[],
+  pageResults: PageWorkflowResult[]
+): Record<string, unknown> {
+  const fieldsOutput: Record<string, unknown> = {};
+
+  for (const fieldName of requestedFields) {
+    const matches = findings.filter((f) => f.field === fieldName);
+    if (matches.length === 0) {
+      fieldsOutput[fieldName] = 'NOT FOUND';
+    } else if (matches.length === 1) {
+      fieldsOutput[fieldName] = {
+        value: matches[0].value,
+        pageUrl: matches[0].pageUrl,
+        ...(matches[0].confidence ? { confidence: matches[0].confidence } : {}),
+      };
+    } else {
+      fieldsOutput[fieldName] = matches.map((m) => ({
+        value: m.value,
+        pageUrl: m.pageUrl,
+        ...(m.confidence ? { confidence: m.confidence } : {}),
+      }));
+    }
+  }
+
+  return {
     startUrl,
     pagesProcessed: pageResults.length,
-    pageResults: pageResults.map((p) => ({
+    fields: fieldsOutput,
+    findings,
+    pages: pageResults.map((p) => ({
       pageUrl: p.pageUrl,
       summary: p.summary,
-      fields: Object.fromEntries(p.fields.map((f) => [f.field, f.value])),
+      fieldResults: p.fields.map((f) => ({
+        field: f.field,
+        value: f.value ?? 'NOT FOUND',
+        present: f.value != null,
+        confidence: f.confidence,
+      })),
     })),
   };
+}
+
+export async function workflowSaveResult(
+  startUrl: string,
+  input: WorkflowSaveInput,
+  config: WorkflowConfig = {}
+): Promise<{ outputPath: string; document: Record<string, unknown> }> {
+  const document = buildFinalOutputDocument(
+    startUrl,
+    input.requestedFields,
+    input.findings,
+    input.pageResults
+  );
+
+  if (getSettings().CLOUD_LLM_URL) {
+    try {
+      const cloudFormatted = await formatOutputWithCloudLlm(
+        startUrl,
+        input.findings.map((f) => ({
+          field: f.field,
+          value: f.value,
+          confidence: f.confidence ?? 'unknown',
+          sourcePages: [f.pageUrl],
+        })),
+        config.directions ?? '',
+        input.pageResults.length
+      );
+      Object.assign(document, { cloudFormatted });
+    } catch {
+      // Keep deterministic per-page output when cloud formatting fails.
+    }
+  }
 
   const outputDir = getOutputDir();
   const slug = new URL(startUrl).hostname.replace(/\./g, '_') + '_' + Date.now();
   const outputPath = path.join(outputDir, `${slug}.json`);
-  fs.writeFileSync(outputPath, JSON.stringify(enriched, null, 2), 'utf-8');
+  fs.writeFileSync(outputPath, JSON.stringify(document, null, 2), 'utf-8');
 
-  return { outputPath, document: enriched };
-}
-
-/** Prefer first non-null value per field across pages. */
-function mergeFieldsAcrossPages(pageResults: PageWorkflowResult[]): FieldResult[] {
-  const byField = new Map<string, FieldResult>();
-
-  for (const page of pageResults) {
-    for (const field of page.fields) {
-      const existing = byField.get(field.field);
-      if (!existing || (existing.value == null && field.value != null)) {
-        byField.set(field.field, {
-          ...field,
-          sourcePages: field.value != null ? [page.pageUrl] : [],
-        });
-      } else if (existing.value != null && field.value != null) {
-        existing.sourcePages = [...new Set([...existing.sourcePages, page.pageUrl])];
-      }
-    }
-  }
-
-  return Array.from(byField.values());
+  return { outputPath, document };
 }

@@ -100,6 +100,18 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+}
+
+.tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-panel--hidden {
+  display: none !important;
 }
 
 .scrape-form {

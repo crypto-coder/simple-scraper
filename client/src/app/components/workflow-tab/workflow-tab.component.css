@@ -1,8 +1,37 @@
+:host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .workflow-shell {
   flex: 1;
   min-height: 0;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: #1a1a1a;
+}
+
+.workflow-shell--ready {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.workflow-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.workflow-status--error {
+  color: var(--error);
+  max-width: 36rem;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  line-height: 1.5;
 }
 
 .workflow-frame {

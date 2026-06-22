@@ -42,6 +42,7 @@ ENV LOCAL_LLM_MODEL=gemma4:e4b
 ENV OUTPUT_FOLDER=/app/output
 ENV OLLAMA_HOST=http://127.0.0.1:11434
 ENV OLLAMA_MODELS=/app/models
+ENV OLLAMA_KEEP_ALIVE=-1
 
 VOLUME ["/app/models", "/app/output", "/app/data"]
 

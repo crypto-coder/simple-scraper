@@ -27,7 +27,17 @@ docker compose up --build
 
 Open [http://localhost:3000](http://localhost:3000). Use the **Scraper** and **Workflow** tabs to switch between the scrape form and the n8n workspace.
 
-On first visit to the Workflow tab, n8n will prompt you to create an owner account.
+The **Workflow** tab signs in automatically using the n8n owner account from `.env` (`N8N_OWNER_*`). No manual setup or login is required after the first stack start.
+
+If the browser console shows `A listener indicated an asynchronous response...`, that message comes from a **browser extension** (password managers, VPN, ad blockers), not from this app. Try an incognito window with extensions disabled to confirm. The iframe is also kept alive across tab switches so extensions are not re-triggered on every visit.
+
+If you previously started n8n and saw the owner setup wizard, reset n8n data once so the env-provisioned owner can be applied:
+
+```bash
+docker compose down
+rm -f runtime/n8n/.website-scraper-imported runtime/n8n/database.sqlite*
+docker compose up --build
+```
 
 ### n8n workflow persistence
 
@@ -74,7 +84,13 @@ ls -la runtime/models/blobs
 | `CLOUD_LLM_API_KEY` | *(empty)* | API key for the cloud LLM |
 | `LOCAL_LLM_MODEL` | `gemma4:e4b` | Default Ollama model tag |
 | `OLLAMA_MODELS` | `./models` | Where Ollama stores downloaded models |
+| `OLLAMA_KEEP_ALIVE` | `-1` | How long Ollama keeps models loaded in memory (`-1` = indefinitely) |
 | `OUTPUT_FOLDER` | `./output` | Where scraped JSON results are written |
+| `N8N_OWNER_EMAIL` | `owner@simple-scraper.local` | n8n owner email (auto-provisioned) |
+| `N8N_OWNER_PASSWORD` | `simple-scraper` | n8n owner password (used for Workflow tab auto-login) |
+| `N8N_OWNER_PASSWORD_HASH` | *(see `.env.example`)* | bcrypt hash of `N8N_OWNER_PASSWORD` for n8n startup |
+| `N8N_OWNER_FIRST_NAME` | `Simple` | n8n owner first name |
+| `N8N_OWNER_LAST_NAME` | `Scraper` | n8n owner last name |
 
 These can also be changed from the **Settings** modal in the UI (persisted to `/app/data/settings.json` inside the container).
 
@@ -107,9 +123,9 @@ ollama pull gemma4:e4b   # or qwen3:8b, qwen2.5:7b
 When you click **Scrape**, the server triggers the n8n **Website Scraper** workflow and streams progress back to the UI:
 
 1. Spider each URL (discover same-origin pages)
-2. For each page: scrape text → summarize (local LLM)
-3. For each field on each page: extract via Q&A (local LLM)
-4. Aggregate, format, and save JSON to the output folder
+2. For **each page**: scrape visible text → summarize with local LLM
+3. For **each page summary**: Q&A field extraction per requested field (kept separate per page)
+4. Collect findings (field + value + page URL) and save final JSON (`NOT FOUND` when a field is missing everywhere)
 
 ### n8n workflow (orchestration engine)
 
@@ -120,7 +136,7 @@ On first Docker start, the `n8n-import` service automatically imports and activa
 **Re-import after workflow changes** (one-time):
 
 ```bash
-rm runtime/n8n/.website-scraper-imported
+rm -f runtime/n8n/.website-scraper-imported-v2
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```
@@ -158,5 +174,5 @@ simple-scraper/
 | POST | `/api/workflow/scrape-page` | `{ url }` → `{ url, text, textLength }` |
 | POST | `/api/workflow/summarize` | `{ text, summarizePrompt?, localLlmModel? }` → `{ summary }` |
 | POST | `/api/workflow/extract-field` | `{ field, context, fieldPrompt?, directions? }` → field Q&A result |
-| POST | `/api/workflow/save-result` | `{ startUrl, pageResults[] }` → `{ outputPath, document }` |
+| POST | `/api/workflow/save-result` | `{ startUrl, requestedFields[], findings[], pageResults[] }` → `{ outputPath, document }` |
 | POST | `/api/workflow/progress/:jobId/event` | Progress callbacks from n8n (`log`, `url_start`, `url_done`, `complete`, `error`) |

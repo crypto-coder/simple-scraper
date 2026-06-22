@@ -30,7 +30,7 @@
   </header>
 
   <main class="main">
-    @if (activeTab === 'scraper') {
+    <div class="tab-panel" [class.tab-panel--hidden]="activeTab !== 'scraper'">
       <form class="scrape-form" (ngSubmit)="onScrapeClick()">
         <label class="field">
           <span class="label">Website URLs</span>
@@ -116,9 +116,13 @@
           (dismiss)="onDismissProgress()"
         />
       }
-    } @else {
-      <app-workflow-tab />
-    }
+    </div>
+
+    <app-workflow-tab
+      class="tab-panel"
+      [class.tab-panel--hidden]="activeTab !== 'workflow'"
+      [active]="activeTab === 'workflow'"
+    />
   </main>
 
   @if (showSettings) {

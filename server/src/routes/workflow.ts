@@ -1,15 +1,30 @@
 import { Router } from 'express';
 import { jobManager, type ProgressEventType } from '../services/jobManager';
+import { loginToN8n } from '../services/n8nAuth';
 import {
   workflowExtractField,
   workflowSaveResult,
   workflowScrapePage,
   workflowSpider,
   workflowSummarize,
+  type FieldFinding,
   type PageWorkflowResult,
 } from '../services/workflowEngine';
 
 export const workflowRouter = Router();
+
+workflowRouter.post('/n8n-login', async (_req, res) => {
+  try {
+    const cookies = await loginToN8n();
+    for (const cookie of cookies) {
+      res.append('Set-Cookie', cookie);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(502).json({ error: msg });
+  }
+});
 
 workflowRouter.post('/progress/:jobId/event', (req, res) => {
   const { jobId } = req.params;
@@ -119,29 +134,47 @@ workflowRouter.post('/extract-field', async (req, res) => {
 
 workflowRouter.post('/save-result', async (req, res) => {
   try {
-    const { startUrl, pageResults, directions, summarizePrompt, fieldPrompt, localLlmModel } =
-      req.body as {
-        startUrl?: string;
-        pageResults?: PageWorkflowResult[];
-        directions?: string;
-        summarizePrompt?: string;
-        fieldPrompt?: string;
-        localLlmModel?: string;
-      };
-    if (!startUrl?.trim()) {
-      res.status(400).json({ error: 'startUrl is required' });
-      return;
-    }
-    if (!pageResults?.length) {
-      res.status(400).json({ error: 'pageResults is required' });
-      return;
-    }
-    const result = await workflowSaveResult(startUrl.trim(), pageResults, {
+    const {
+      startUrl,
+      requestedFields,
+      findings,
+      pageResults,
       directions,
       summarizePrompt,
       fieldPrompt,
       localLlmModel,
-    });
+    } = req.body as {
+      startUrl?: string;
+      requestedFields?: string[];
+      findings?: FieldFinding[];
+      pageResults?: PageWorkflowResult[];
+      directions?: string;
+      summarizePrompt?: string;
+      fieldPrompt?: string;
+      localLlmModel?: string;
+    };
+    if (!startUrl?.trim()) {
+      res.status(400).json({ error: 'startUrl is required' });
+      return;
+    }
+    if (!requestedFields?.length) {
+      res.status(400).json({ error: 'requestedFields is required' });
+      return;
+    }
+    const result = await workflowSaveResult(
+      startUrl.trim(),
+      {
+        requestedFields,
+        findings: findings ?? [],
+        pageResults: pageResults ?? [],
+      },
+      {
+        directions,
+        summarizePrompt,
+        fieldPrompt,
+        localLlmModel,
+      }
+    );
     res.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

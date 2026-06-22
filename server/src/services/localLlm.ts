@@ -9,6 +9,12 @@ import {
 
 const OLLAMA_BASE = process.env.OLLAMA_HOST ?? 'http://127.0.0.1:11434';
 
+function ollamaKeepAlive(): number | string {
+  const raw = process.env.OLLAMA_KEEP_ALIVE ?? '-1';
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : raw;
+}
+
 export async function ensureModelAvailable(model: string): Promise<void> {
   const res = await fetch(`${OLLAMA_BASE}/api/tags`);
   if (!res.ok) {
@@ -19,6 +25,24 @@ export async function ensureModelAvailable(model: string): Promise<void> {
   const found = names.some((n) => n === model || n.startsWith(`${model}:`));
   if (!found) {
     await pullModel(model);
+    await warmModel(model);
+  }
+}
+
+async function warmModel(model: string): Promise<void> {
+  const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      prompt: ' ',
+      stream: false,
+      keep_alive: ollamaKeepAlive(),
+      options: { num_predict: 1 },
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to warm model ${model}: ${res.statusText}`);
   }
 }
 
@@ -44,6 +68,7 @@ export async function generate(prompt: string, model?: string): Promise<string> 
       model: modelName,
       prompt,
       stream: false,
+      keep_alive: ollamaKeepAlive(),
       options: { temperature: 0.1, num_predict: 1024 },
     }),
   });
@@ -62,7 +87,7 @@ export async function summarizeText(
   template: string = DEFAULT_SUMMARIZE_PROMPT,
   model?: string
 ): Promise<string> {
-  const truncated = text.length > 30000 ? text.slice(0, 30000) + '\n...[truncated]' : text;
+  const truncated = text.length > 4080 ? text.slice(0, 4080) + '\n...[truncated]' : text;
   const prompt = renderPromptTemplate(template, { text: truncated });
   return generate(prompt, model);
 }

@@ -1,6 +1,26 @@
-<div class="app">
+<div class="app" [class.app--workflow]="activeTab === 'workflow'">
   <header class="header">
-    <h1>Site Scraper</h1>
+    <div class="header-left">
+      <h1>Simple Scraper</h1>
+      <nav class="tabs" aria-label="Main navigation">
+        <button
+          type="button"
+          class="tab"
+          [class.active]="activeTab === 'scraper'"
+          (click)="setActiveTab('scraper')"
+        >
+          Scraper
+        </button>
+        <button
+          type="button"
+          class="tab"
+          [class.active]="activeTab === 'workflow'"
+          (click)="setActiveTab('workflow')"
+        >
+          Workflow
+        </button>
+      </nav>
+    </div>
     <button type="button" class="gear-btn" (click)="openSettings()" [disabled]="isRunning" aria-label="Settings">
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -10,90 +30,94 @@
   </header>
 
   <main class="main">
-    <form class="scrape-form" (ngSubmit)="onScrapeClick()">
-      <label class="field">
-        <span class="label">Website URLs</span>
-        <span class="hint">Paste URLs — they will be split onto separate lines automatically</span>
-        <textarea
-          rows="6"
-          [(ngModel)]="urlsText"
-          name="urls"
-          [disabled]="isRunning"
-          placeholder="https://example.com&#10;https://another-site.org"
-          (paste)="onUrlsPaste($event)"
-        ></textarea>
-      </label>
+    @if (activeTab === 'scraper') {
+      <form class="scrape-form" (ngSubmit)="onScrapeClick()">
+        <label class="field">
+          <span class="label">Website URLs</span>
+          <span class="hint">Paste URLs — they will be split onto separate lines automatically</span>
+          <textarea
+            rows="6"
+            [(ngModel)]="urlsText"
+            name="urls"
+            [disabled]="isRunning"
+            placeholder="https://example.com&#10;https://another-site.org"
+            (paste)="onUrlsPaste($event)"
+          ></textarea>
+        </label>
 
-      <label class="field">
-        <span class="label">Output Fields</span>
-        <span class="hint">One field per line — values discovered across all spidered pages</span>
-        <textarea
-          rows="5"
-          [(ngModel)]="fieldsText"
-          name="fields"
-          [disabled]="isRunning"
-          placeholder="company_name&#10;phone_number&#10;email"
-          (paste)="onFieldsPaste($event)"
-        ></textarea>
-      </label>
+        <label class="field">
+          <span class="label">Output Fields</span>
+          <span class="hint">One field per line — values discovered across all spidered pages</span>
+          <textarea
+            rows="5"
+            [(ngModel)]="fieldsText"
+            name="fields"
+            [disabled]="isRunning"
+            placeholder="company_name&#10;phone_number&#10;email"
+            (paste)="onFieldsPaste($event)"
+          ></textarea>
+        </label>
 
-      <label class="field">
-        <span class="label">Prompt</span>
-        <span class="hint">General directions for scraping, spidering, and cloud LLM output formatting</span>
-        <textarea
-          rows="3"
-          [(ngModel)]="prompt"
-          name="prompt"
-          [disabled]="isRunning"
-          placeholder="Spider all pages on the same domain. Extract contact information and product details..."
-        ></textarea>
-      </label>
+        <label class="field">
+          <span class="label">Prompt</span>
+          <span class="hint">General directions for scraping, spidering, and cloud LLM output formatting</span>
+          <textarea
+            rows="3"
+            [(ngModel)]="prompt"
+            name="prompt"
+            [disabled]="isRunning"
+            placeholder="Spider all pages on the same domain. Extract contact information and product details..."
+          ></textarea>
+        </label>
 
-      <label class="field">
-        <span class="label">Summarize Prompt</span>
-        <span class="hint">Template for condensing long page text. Placeholder: {{ '{{text}}' }}</span>
-        <textarea
-          rows="6"
-          [(ngModel)]="summarizePrompt"
-          name="summarizePrompt"
-          [disabled]="isRunning"
-        ></textarea>
-      </label>
+        <label class="field">
+          <span class="label">Summarize Prompt</span>
+          <span class="hint">Template for condensing long page text. Placeholder: {{ '{{text}}' }}</span>
+          <textarea
+            rows="6"
+            [(ngModel)]="summarizePrompt"
+            name="summarizePrompt"
+            [disabled]="isRunning"
+          ></textarea>
+        </label>
 
-      <label class="field">
-        <span class="label">Field Q&amp;A Prompt</span>
-        <span class="hint">Template for extracting each output field. Placeholders: {{ '{{field}}' }}, {{ '{{fieldQuestion}}' }}, {{ '{{directions}}' }}, {{ '{{context}}' }}</span>
-        <textarea
-          rows="10"
-          [(ngModel)]="fieldPrompt"
-          name="fieldPrompt"
-          [disabled]="isRunning"
-        ></textarea>
-      </label>
+        <label class="field">
+          <span class="label">Field Q&amp;A Prompt</span>
+          <span class="hint">Template for extracting each output field. Placeholders: {{ '{{field}}' }}, {{ '{{fieldQuestion}}' }}, {{ '{{directions}}' }}, {{ '{{context}}' }}</span>
+          <textarea
+            rows="10"
+            [(ngModel)]="fieldPrompt"
+            name="fieldPrompt"
+            [disabled]="isRunning"
+          ></textarea>
+        </label>
 
-      <label class="field">
-        <span class="label">Local LLM</span>
-        <select [(ngModel)]="selectedModel" name="model" [disabled]="isRunning">
-          @for (model of models; track model.id) {
-            <option [value]="model.id">{{ model.label }}</option>
-          }
-        </select>
-      </label>
+        <label class="field">
+          <span class="label">Local LLM</span>
+          <select [(ngModel)]="selectedModel" name="model" [disabled]="isRunning">
+            @for (model of models; track model.id) {
+              <option [value]="model.id">{{ model.label }}</option>
+            }
+          </select>
+        </label>
 
-      <button
-        type="submit"
-        class="scrape-btn"
-        [class.stop]="isRunning"
-      >
-        {{ isRunning ? 'STOP' : 'Scrape' }}
-      </button>
-    </form>
+        <button
+          type="submit"
+          class="scrape-btn"
+          [class.stop]="isRunning"
+        >
+          {{ isRunning ? 'STOP' : 'Scrape' }}
+        </button>
+      </form>
 
-    @if (showProgress && progress) {
-      <app-progress-panel
-        [progress]="progress"
-        (dismiss)="onDismissProgress()"
-      />
+      @if (showProgress && progress) {
+        <app-progress-panel
+          [progress]="progress"
+          (dismiss)="onDismissProgress()"
+        />
+      }
+    } @else {
+      <app-workflow-tab />
     }
   </main>
 

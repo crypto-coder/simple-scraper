@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "projects": {
-    "site-scraper": {
+    "simple-scraper": {
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
@@ -11,7 +11,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/site-scraper",
+            "outputPath": "dist/simple-scraper",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
@@ -38,8 +38,8 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
-            "production": { "buildTarget": "site-scraper:build:production" },
-            "development": { "buildTarget": "site-scraper:build:development" }
+            "production": { "buildTarget": "simple-scraper:build:production" },
+            "development": { "buildTarget": "simple-scraper:build:development" }
           },
           "defaultConfiguration": "development"
         }

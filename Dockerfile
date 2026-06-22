@@ -32,7 +32,7 @@ COPY --from=server-build /build/server/dist ./server/dist
 COPY --from=server-build /build/server/node_modules ./server/node_modules
 COPY --from=server-build /build/server/package.json ./server/package.json
 
-COPY --from=client-build /build/client/dist/site-scraper/browser ./server/public
+COPY --from=client-build /build/client/dist/simple-scraper/browser ./server/public
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

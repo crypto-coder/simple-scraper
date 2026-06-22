@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProgressPanelComponent } from './components/progress-panel/progress-panel.component';
 import { SettingsModalComponent } from './components/settings-modal/settings-modal.component';
+import { WorkflowTabComponent } from './components/workflow-tab/workflow-tab.component';
 import type { AppSettings, LlmOption, ScrapeProgress } from './models';
 import { ScrapeService } from './services/scrape.service';
 import { SettingsService } from './services/settings.service';
@@ -10,11 +11,12 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, SettingsModalComponent, ProgressPanelComponent],
+  imports: [FormsModule, SettingsModalComponent, ProgressPanelComponent, WorkflowTabComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit, OnDestroy {
+  activeTab: 'scraper' | 'workflow' = 'scraper';
   urlsText = '';
   fieldsText = '';
   prompt = '';
@@ -104,6 +106,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   openSettings(): void {
     this.showSettings = true;
+  }
+
+  setActiveTab(tab: 'scraper' | 'workflow'): void {
+    this.activeTab = tab;
   }
 
   onSettingsSave(updated: AppSettings): void {

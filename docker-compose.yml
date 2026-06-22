@@ -1,5 +1,15 @@
 services:
-  site-scraper:
+  n8n-import:
+    image: docker.n8n.io/n8nio/n8n:latest
+    user: "1000:1000"
+    volumes:
+      - ./runtime/n8n:/home/node/.n8n
+      - ./n8n/workflows:/import:ro
+      - ./n8n/import-workflow.sh:/import-workflow.sh:ro
+    entrypoint: ["/bin/sh", "/import-workflow.sh"]
+    restart: "no"
+
+  simple-scraper:
     build: .
     ports:
       - "3000:3000"
@@ -9,9 +19,53 @@ services:
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma4:e4b}
       OUTPUT_FOLDER: /app/output
       OLLAMA_MODELS: /app/models
+      N8N_INTERNAL_URL: http://n8n:5678
+      N8N_WEBHOOK_SCRAPE_URL: http://n8n:5678/webhook/scrape
+      SCRAPER_BASE_URL: http://simple-scraper:3000
     volumes:
       - ./runtime/models:/app/models
       - ./runtime/output:/app/output
       - ./runtime/data:/app/data
+    depends_on:
+      n8n-import:
+        condition: service_completed_successfully
+      n8n:
+        condition: service_healthy
     restart: unless-stopped
 
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    user: "1000:1000"
+    environment:
+      N8N_HOST: 0.0.0.0
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_PATH: /workflow/
+      N8N_EDITOR_BASE_URL: http://localhost:3000/workflow/
+      WEBHOOK_URL: http://localhost:3000/workflow/
+      N8N_PROXY_HOPS: 1
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      GENERIC_TIMEZONE: ${TZ:-UTC}
+    volumes:
+      - type: bind
+        source: ./runtime/n8n
+        target: /home/node/.n8n
+      - type: bind
+        source: ./runtime/n8n-files
+        target: /files
+      - type: bind
+        source: ./n8n/workflows
+        target: /files/workflows
+        read_only: true
+    expose:
+      - "5678"
+    depends_on:
+      n8n-import:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

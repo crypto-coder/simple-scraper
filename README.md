@@ -10,6 +10,7 @@ A Docker-packaged website scraper with an Angular UI, a local small LLM (via Oll
 - **Local LLM** — Gemma 4, Qwen 3, or Qwen 2.5 (Ollama) for summarization and field Q&A
 - **Cloud LLM** — OpenAI-compatible API for final JSON formatting (optional)
 - **Settings** — gear icon opens a modal to configure environment variables at runtime
+- **Workflow tab** — embedded [n8n](https://n8n.io) editor proxied at `/workflow/` for building automation workflows
 
 ## Quick Start (Docker)
 
@@ -17,12 +18,32 @@ A Docker-packaged website scraper with an Angular UI, a local small LLM (via Oll
 cp .env.example .env
 # Edit .env with your CLOUD_LLM_URL and CLOUD_LLM_API_KEY if needed
 
+mkdir -p runtime/n8n runtime/n8n-files
+# If n8n reports permission errors on first start (Linux/WSL):
+# sudo chown -R 1000:1000 runtime/n8n runtime/n8n-files
+
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Use the **Scraper** and **Workflow** tabs to switch between the scrape form and the n8n workspace.
 
-On first run, the container pulls the default local model (`gemma4:e4b`). This can take several minutes depending on your connection.
+On first visit to the Workflow tab, n8n will prompt you to create an owner account.
+
+### n8n workflow persistence
+
+All n8n data is stored on the host via Docker bind mounts (survives `docker compose down` and container rebuilds):
+
+| Host path | Container path | Contents |
+|-----------|----------------|----------|
+| `./runtime/n8n` | `/home/node/.n8n` | Workflows, credentials, SQLite database, encryption key |
+| `./runtime/n8n-files` | `/files` | Files read/written by workflow nodes |
+
+Verify persistence after creating a workflow:
+
+```bash
+docker compose restart n8n
+ls -la runtime/n8n/database.sqlite   # appears after first workflow save
+```
 
 ### Build error: `cgroup-parent for systemd cgroup should be a valid slice`
 
@@ -41,7 +62,7 @@ Ollama only uses `OLLAMA_MODELS` when the server starts. Models pulled before th
 
 ```bash
 docker compose up --build -d
-docker compose exec site-scraper ollama pull gemma4:e4b
+docker compose exec simple-scraper ollama pull gemma4:e4b
 ls -la runtime/models/blobs
 ```
 
@@ -81,14 +102,28 @@ ollama pull gemma4:e4b   # or qwen3:8b, qwen2.5:7b
 
 ## How It Works
 
-For each URL (processed sequentially):
+### UI scrape job (via n8n)
 
-1. Spider all same-origin pages linked from the start URL
-2. Save each page's HTML and extracted text to temp files
-3. Summarize long text with the local LLM if needed
-4. Ask the local LLM about each output field one-by-one
-5. Format results into JSON (cloud LLM if configured, otherwise local fallback)
-6. Write JSON to the output folder and stream progress/logs to the UI
+When you click **Scrape**, the server triggers the n8n **Website Scraper** workflow and streams progress back to the UI:
+
+1. Spider each URL (discover same-origin pages)
+2. For each page: scrape text → summarize (local LLM)
+3. For each field on each page: extract via Q&A (local LLM)
+4. Aggregate, format, and save JSON to the output folder
+
+### n8n workflow (orchestration engine)
+
+The **Scrape** button triggers the n8n **Website Scraper** workflow via webhook. n8n orchestrates each step and reports progress back to the UI in real time.
+
+On first Docker start, the `n8n-import` service automatically imports and activates the workflow from `n8n/workflows/website-scraper.workflow.json`.
+
+**Re-import after workflow changes** (one-time):
+
+```bash
+rm runtime/n8n/.website-scraper-imported
+docker compose run --rm n8n-import
+docker compose restart n8n
+```
 
 ## Project Structure
 
@@ -96,11 +131,14 @@ For each URL (processed sequentially):
 simple-scraper/
 ├── client/          Angular frontend
 ├── server/          Express + TypeScript API & scraper engine
+├── n8n/workflows/   Importable n8n workflow templates
 ├── Dockerfile       Multi-stage build (Angular + Node + Ollama)
 └── docker-compose.yml
 ```
 
 ## API Endpoints
+
+### Scraper UI
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -111,3 +149,14 @@ simple-scraper/
 | POST | `/api/scrape/stop` | Stop the running job |
 | POST | `/api/scrape/dismiss` | Clear progress panel |
 | GET/PUT | `/api/settings` | Read/update settings |
+
+### n8n workflow steps
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/workflow/spider` | `{ url }` → `{ url, pages[] }` |
+| POST | `/api/workflow/scrape-page` | `{ url }` → `{ url, text, textLength }` |
+| POST | `/api/workflow/summarize` | `{ text, summarizePrompt?, localLlmModel? }` → `{ summary }` |
+| POST | `/api/workflow/extract-field` | `{ field, context, fieldPrompt?, directions? }` → field Q&A result |
+| POST | `/api/workflow/save-result` | `{ startUrl, pageResults[] }` → `{ outputPath, document }` |
+| POST | `/api/workflow/progress/:jobId/event` | Progress callbacks from n8n (`log`, `url_start`, `url_done`, `complete`, `error`) |

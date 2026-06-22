@@ -1,0 +1,385 @@
+{
+  "name": "Website Scraper",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scrape",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Scrape Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "website-scraper-scrape"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.body ?? $json;\nconst urls = raw.urls ?? [];\n\nreturn urls.map((startUrl) => ({\n  json: {\n    jobId: raw.jobId,\n    startUrl,\n    fields: raw.fields ?? [],\n    directions: raw.prompt ?? '',\n    summarizePrompt: raw.summarizePrompt ?? '',\n    fieldPrompt: raw.fieldPrompt ?? '',\n    localLlmModel: raw.localLlmModel ?? 'gemma4:e4b',\n    scraperBaseUrl: raw.scraperBaseUrl ?? 'http://simple-scraper:3000',\n    totalUrls: urls.length,\n  },\n}));"
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Split URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/progress/{{ $json.jobId }}/event",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'url_start', url: $json.startUrl, message: 'Starting spider for ' + $json.startUrl }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Log URL Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Split URLs').item.json.scraperBaseUrl }}/api/workflow/spider",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $('Split URLs').item.json.startUrl }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Spider URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Split URLs').item.json;\nconst pages = $json.pages ?? [];\nreturn [{\n  json: {\n    ...ctx,\n    pages,\n    pageCount: pages.length,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "After Spider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/progress/{{ $json.jobId }}/event",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'log', level: $json.pageCount > 0 ? 'success' : 'warn', message: $json.pageCount > 0 ? 'Spidered ' + $json.pageCount + ' page(s) at ' + $json.startUrl : 'Skipped ' + $json.startUrl + ': no pages scraped' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "Log Spider Done",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "has-pages",
+              "leftValue": "={{ $('After Spider').item.json.pageCount }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0022-4000-8000-000000000022",
+      "name": "Has Pages?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1210, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('After Spider').first().json;\nreturn [{\n  json: {\n    jobId: config.jobId,\n    startUrl: config.startUrl,\n    pageResults: [],\n    directions: config.directions,\n    summarizePrompt: config.summarizePrompt,\n    fieldPrompt: config.fieldPrompt,\n    localLlmModel: config.localLlmModel,\n    scraperBaseUrl: config.scraperBaseUrl,\n    emptySite: true,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0023-4000-8000-000000000023",
+      "name": "Prepare Empty Save",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1430, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('After Spider').first().json;\nconst pages = config.pages ?? [];\n\nreturn pages.map((pageUrl) => ({\n  json: {\n    jobId: config.jobId,\n    startUrl: config.startUrl,\n    pageUrl,\n    fields: config.fields,\n    directions: config.directions,\n    summarizePrompt: config.summarizePrompt,\n    fieldPrompt: config.fieldPrompt,\n    localLlmModel: config.localLlmModel,\n    scraperBaseUrl: config.scraperBaseUrl,\n  },\n}));"
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000007",
+      "name": "Split Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1430, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/scrape-page",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $json.pageUrl }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000008",
+      "name": "Scrape Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Split Pages').item.json;\nreturn [{\n  json: {\n    ...config,\n    text: $json.text,\n    textLength: $json.textLength,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0009-4000-8000-000000000009",
+      "name": "Merge Scrape Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/summarize",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text, directions: $json.directions, summarizePrompt: $json.summarizePrompt || undefined, fieldPrompt: $json.fieldPrompt || undefined, localLlmModel: $json.localLlmModel }) }}",
+        "options": { "timeout": 300000 }
+      },
+      "id": "a1b2c3d4-0010-4000-8000-000000000010",
+      "name": "Summarize Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Merge Scrape Result').item.json;\nreturn [{\n  json: {\n    ...config,\n    summary: $json.summary,\n    summaryLength: $json.summaryLength,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0011-4000-8000-000000000011",
+      "name": "Merge Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const page = $json;\nconst fields = page.fields ?? [];\n\nreturn fields.map((field) => ({\n  json: {\n    jobId: page.jobId,\n    startUrl: page.startUrl,\n    pageUrl: page.pageUrl,\n    summary: page.summary,\n    field,\n    directions: page.directions,\n    summarizePrompt: page.summarizePrompt,\n    fieldPrompt: page.fieldPrompt,\n    localLlmModel: page.localLlmModel,\n    scraperBaseUrl: page.scraperBaseUrl,\n  },\n}));"
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000012",
+      "name": "Split Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/progress/{{ $json.jobId }}/event",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'log', level: 'info', message: 'Checking field \"' + $json.field + '\" for ' + $json.startUrl }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000013",
+      "name": "Log Field Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Split Fields').item.json.scraperBaseUrl }}/api/workflow/extract-field",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ field: $('Split Fields').item.json.field, context: $('Split Fields').item.json.summary, directions: $('Split Fields').item.json.directions, fieldPrompt: $('Split Fields').item.json.fieldPrompt || undefined, localLlmModel: $('Split Fields').item.json.localLlmModel }) }}",
+        "options": { "timeout": 300000 }
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000014",
+      "name": "Extract Field (Q&A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Split Fields').item.json;\nconst found = $json.value != null;\nreturn [{\n  json: {\n    jobId: ctx.jobId,\n    startUrl: ctx.startUrl,\n    pageUrl: ctx.pageUrl,\n    summary: ctx.summary,\n    directions: ctx.directions,\n    summarizePrompt: ctx.summarizePrompt,\n    fieldPrompt: ctx.fieldPrompt,\n    localLlmModel: ctx.localLlmModel,\n    scraperBaseUrl: ctx.scraperBaseUrl,\n    field: $json.field,\n    value: $json.value,\n    present: found,\n    confidence: $json.confidence,\n    fieldQuestion: $json.fieldQuestion,\n    logLevel: found ? 'success' : 'warn',\n    logMessage: found ? 'Found \"' + $json.field + '\": ' + $json.value : 'Field \"' + $json.field + '\" not found on ' + ctx.startUrl,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000015",
+      "name": "Merge Field Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/progress/{{ $json.jobId }}/event",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'log', level: $json.logLevel, message: $json.logMessage }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0016-4000-8000-000000000016",
+      "name": "Log Field Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3300, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all().map((item) => item.json);\nif (items.length === 0) {\n  const ctx = $('After Spider').first()?.json;\n  if (!ctx) return [];\n  return [{\n    json: {\n      jobId: ctx.jobId,\n      startUrl: ctx.startUrl,\n      pageResults: [],\n      directions: ctx.directions,\n      summarizePrompt: ctx.summarizePrompt,\n      fieldPrompt: ctx.fieldPrompt,\n      localLlmModel: ctx.localLlmModel,\n      scraperBaseUrl: ctx.scraperBaseUrl,\n      emptySite: true,\n    },\n  }];\n}\n\nconst byPage = new Map();\nfor (const item of items) {\n  if (!byPage.has(item.pageUrl)) {\n    byPage.set(item.pageUrl, { pageUrl: item.pageUrl, summary: item.summary, fields: [] });\n  }\n  byPage.get(item.pageUrl).fields.push({\n    field: item.field,\n    value: item.value,\n    confidence: item.confidence,\n    sourcePages: item.value != null ? [item.pageUrl] : [],\n  });\n}\n\nconst first = items[0];\nreturn [{\n  json: {\n    jobId: first.jobId,\n    startUrl: first.startUrl,\n    pageResults: Array.from(byPage.values()),\n    directions: first.directions,\n    summarizePrompt: first.summarizePrompt,\n    fieldPrompt: first.fieldPrompt,\n    localLlmModel: first.localLlmModel,\n    scraperBaseUrl: first.scraperBaseUrl,\n    emptySite: false,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0017-4000-8000-000000000017",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3520, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/save-result",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ startUrl: $json.startUrl, pageResults: $json.pageResults, directions: $json.directions, summarizePrompt: $json.summarizePrompt || undefined, fieldPrompt: $json.fieldPrompt || undefined, localLlmModel: $json.localLlmModel }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0018-4000-8000-000000000018",
+      "name": "Save JSON Output",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3740, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const saved = $json;\nconst source = $('Aggregate Results').first()?.json ?? $('Prepare Empty Save').first()?.json ?? $('After Spider').first()?.json;\nconst emptySite = Boolean(source?.emptySite);\nreturn [{\n  json: {\n    jobId: source.jobId,\n    scraperBaseUrl: source.scraperBaseUrl,\n    startUrl: source.startUrl,\n    outputPath: saved.outputPath,\n    message: emptySite ? 'No pages scraped for ' + source.startUrl : 'Saved output to ' + saved.outputPath,\n    level: emptySite ? 'warn' : 'success',\n  },\n}];"
+      },
+      "id": "a1b2c3d4-0019-4000-8000-000000000019",
+      "name": "After Save",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/progress/{{ $json.jobId }}/event",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'log', level: $json.level, message: $json.message }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0020-4000-8000-000000000020",
+      "name": "Log Save Done",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4180, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/progress/{{ $json.jobId }}/event",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'url_done', message: 'Finished processing ' + $json.startUrl }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0021-4000-8000-000000000021",
+      "name": "Log URL Done",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4400, 300]
+    }
+  ],
+  "connections": {
+    "Scrape Webhook": {
+      "main": [[{ "node": "Split URLs", "type": "main", "index": 0 }]]
+    },
+    "Split URLs": {
+      "main": [[{ "node": "Log URL Start", "type": "main", "index": 0 }]]
+    },
+    "Log URL Start": {
+      "main": [[{ "node": "Spider URL", "type": "main", "index": 0 }]]
+    },
+    "Spider URL": {
+      "main": [[{ "node": "After Spider", "type": "main", "index": 0 }]]
+    },
+    "After Spider": {
+      "main": [[{ "node": "Log Spider Done", "type": "main", "index": 0 }]]
+    },
+    "Log Spider Done": {
+      "main": [[{ "node": "Has Pages?", "type": "main", "index": 0 }]]
+    },
+    "Has Pages?": {
+      "main": [
+        [{ "node": "Split Pages", "type": "main", "index": 0 }],
+        [{ "node": "Prepare Empty Save", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Empty Save": {
+      "main": [[{ "node": "Save JSON Output", "type": "main", "index": 0 }]]
+    },
+    "Split Pages": {
+      "main": [[{ "node": "Scrape Page", "type": "main", "index": 0 }]]
+    },
+    "Scrape Page": {
+      "main": [[{ "node": "Merge Scrape Result", "type": "main", "index": 0 }]]
+    },
+    "Merge Scrape Result": {
+      "main": [[{ "node": "Summarize Page", "type": "main", "index": 0 }]]
+    },
+    "Summarize Page": {
+      "main": [[{ "node": "Merge Summary", "type": "main", "index": 0 }]]
+    },
+    "Merge Summary": {
+      "main": [[{ "node": "Split Fields", "type": "main", "index": 0 }]]
+    },
+    "Split Fields": {
+      "main": [[{ "node": "Log Field Check", "type": "main", "index": 0 }]]
+    },
+    "Log Field Check": {
+      "main": [[{ "node": "Extract Field (Q&A)", "type": "main", "index": 0 }]]
+    },
+    "Extract Field (Q&A)": {
+      "main": [[{ "node": "Merge Field Result", "type": "main", "index": 0 }]]
+    },
+    "Merge Field Result": {
+      "main": [[{ "node": "Log Field Result", "type": "main", "index": 0 }]]
+    },
+    "Log Field Result": {
+      "main": [[{ "node": "Aggregate Results", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Results": {
+      "main": [[{ "node": "Save JSON Output", "type": "main", "index": 0 }]]
+    },
+    "Save JSON Output": {
+      "main": [[{ "node": "After Save", "type": "main", "index": 0 }]]
+    },
+    "After Save": {
+      "main": [[{ "node": "Log Save Done", "type": "main", "index": 0 }]]
+    },
+    "Log Save Done": {
+      "main": [[{ "node": "Log URL Done", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

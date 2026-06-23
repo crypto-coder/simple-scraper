@@ -17,8 +17,6 @@ export interface ScrapeProgress {
 
 import type { Project } from './types/records';
 
-export type { Project, OutputField, Execution, Result, Scrape } from './types/records';
-
 export interface ScrapeRequest {
   project?: Project;
   urls: string[];
@@ -42,14 +40,6 @@ export interface FieldResult {
   value: string | null;
   confidence: string;
   sourcePages: string[];
-}
-
-export interface UrlScrapeResult {
-  url: string;
-  fields: FieldResult[];
-  pagesScraped: number;
-  skipped: boolean;
-  skipReason?: string;
 }
 
 export const LOCAL_LLM_OPTIONS = [

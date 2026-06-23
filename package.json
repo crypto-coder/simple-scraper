@@ -1,0 +1,12 @@
+{
+  "name": "site-scraper",
+  "private": true,
+  "scripts": {
+    "analyze": "knip",
+    "analyze:production": "knip --production"
+  },
+  "devDependencies": {
+    "knip": "^5.46.0",
+    "typescript": "^5.7.3"
+  }
+}

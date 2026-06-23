@@ -50,7 +50,16 @@ Update both `N8N_OWNER_PASSWORD` and `N8N_INSTANCE_OWNER_PASSWORD_HASH` in that 
 
 If the browser console shows `A listener indicated an asynchronous response...`, that message comes from a **browser extension** (password managers, VPN, ad blockers), not from this app. Try an incognito window with extensions disabled to confirm. The iframe is also kept alive across tab switches so extensions are not re-triggered on every visit.
 
-When opening the app from another machine by IP (not `localhost`), set `PUBLIC_BASE_URL` in `.env` to the URL you use in the browser, for example `http://10.32.1.124:3000`. This keeps n8n editor and webhook links consistent. Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are usually harmless (browser extensions or n8n passkey checks) and are stripped by the proxy where possible.
+When opening the app from another machine by IP (not `localhost`), set both values in `.env`:
+
+```bash
+PUBLIC_BASE_URL=http://10.32.1.124:3000
+N8N_HOST=10.32.1.124:3000
+```
+
+`N8N_HOST` must be the **host:port you use in the browser** (not `0.0.0.0`). n8n compares the push connection `Origin` header against this value. If you see `Origin header does NOT match the expected origin` with `undefined` on both sides, `N8N_HOST` is misconfigured — fix it and restart n8n. Occasional log lines without editor problems are usually harmless SSE reconnect attempts.
+
+Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are usually harmless (browser extensions or n8n passkey checks) and are stripped by the proxy where possible.
 
 If saving in the embedded n8n editor fails or shows **Lost connection to the server**, rebuild after pulling the latest code. The stack uses **SSE push** (`N8N_PUSH_BACKEND=sse`) instead of WebSockets for better proxy compatibility, strips problematic security headers, and forwards the browser `Host` on all `/workflow/` requests.
 
@@ -167,7 +176,7 @@ ls -la runtime/models/blobs
 | `LOCAL_LLM_MODEL` | `gemma4:e4b` | Default Ollama model tag |
 | `OLLAMA_MODELS` | `./models` | Where Ollama stores downloaded models |
 | `OLLAMA_KEEP_ALIVE` | `-1` | How long Ollama keeps models loaded in memory (`-1` = indefinitely) |
-| `OUTPUT_FOLDER` | `./output` | Where scraped JSON results are written |
+| `OUTPUT_FOLDER` | `./output` | Legacy path setting (results are stored in CouchDB) |
 
 n8n owner credentials (`N8N_OWNER_*`, `N8N_INSTANCE_OWNER_*`) are in **`config/n8n.env`**, not `.env`.
 
@@ -222,6 +231,17 @@ docker compose run --rm n8n-import
 docker compose restart n8n
 ```
 
+## Static analysis (unused code)
+
+From the repo root, run [Knip](https://knip.dev) to find unused files, dependencies, and exports:
+
+```bash
+npm install   # once — installs knip at repo root
+npm run analyze
+```
+
+`npm run analyze:production` omits dev-only tooling from dependency checks.
+
 ## Project Structure
 
 ```
@@ -247,13 +267,23 @@ simple-scraper/
 | POST | `/api/scrape/dismiss` | Clear progress panel |
 | GET/PUT | `/api/settings` | Read/update settings |
 
+### CouchDB records
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/projects` | List saved projects |
+| POST | `/api/projects` | Create a project |
+| PUT | `/api/projects/:id` | Update a project |
+| GET | `/api/executions` | List scrape executions |
+
 ### n8n workflow steps
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/workflow/spider` | `{ url }` → `{ url, pages[] }` |
-| POST | `/api/workflow/scrape-page` | `{ url }` → `{ url, text, textLength }` |
+| POST | `/api/workflow/scrape-page` | `{ url, execution_id? }` → page text (+ `scrape_id` when `execution_id` set) |
 | POST | `/api/workflow/summarize` | `{ text, summarizePrompt?, localLlmModel? }` → `{ summary }` |
 | POST | `/api/workflow/extract-field` | `{ field, context, fieldPrompt?, directions? }` → field Q&A result |
-| POST | `/api/workflow/save-result` | `{ startUrl, requestedFields[], findings[], pageResults[] }` → `{ outputPath, document }` |
+| POST | `/api/workflow/save-scrape` | Upsert scrape record in CouchDB |
+| POST | `/api/workflow/save-execution` | Append field results to execution in CouchDB |
 | POST | `/api/workflow/progress/:jobId/event` | Progress callbacks from n8n (`log`, `url_start`, `url_done`, `complete`, `error`) |

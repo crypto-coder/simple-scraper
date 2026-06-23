@@ -50,6 +50,3 @@ export function mountCouchProxy(app: Express): void {
   app.use(createProxyMiddleware(couchProxyOptions(DATABASE_PATH, true)));
   app.use(createProxyMiddleware(couchProxyOptions(isCouchRootPath)));
 }
-
-/** Fauxton at site root — avoids treating /database as a CouchDB database name. */
-export const COUCH_FAUXTON_URL = '/_utils/#/_all_dbs';

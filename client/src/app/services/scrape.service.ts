@@ -24,10 +24,6 @@ export class ScrapeService {
     return this.http.get<PromptDefaults>(`${this.base}/prompt-defaults`);
   }
 
-  getProgress(): Observable<ScrapeProgress> {
-    return this.http.get<ScrapeProgress>(`${this.base}/progress`);
-  }
-
   startStream(): void {
     if (this.eventSource) return;
 

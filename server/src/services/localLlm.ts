@@ -57,7 +57,7 @@ async function pullModel(model: string): Promise<void> {
   }
 }
 
-export async function generate(prompt: string, model?: string): Promise<string> {
+async function generate(prompt: string, model?: string): Promise<string> {
   const settings = getSettings();
   const modelName = model ?? settings.LOCAL_LLM_MODEL;
 

@@ -3,12 +3,9 @@ import { jobManager, type ProgressEventType } from '../services/jobManager';
 import { loginToN8n } from '../services/n8nAuth';
 import {
   workflowExtractField,
-  workflowSaveResult,
   workflowScrapePage,
   workflowSpider,
   workflowSummarize,
-  type FieldFinding,
-  type PageWorkflowResult,
 } from '../services/workflowEngine';
 import { appendExecutionResults, saveScrapeRecord, upsertScrapeRecord } from '../services/workflowCouch';
 import type { Result } from '../types/records';
@@ -192,56 +189,6 @@ workflowRouter.post('/save-execution', async (req, res) => {
     }
     const saved = await appendExecutionResults(execution_id.trim(), results ?? []);
     res.json({ ...saved, startUrl: startUrl ?? null });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: msg });
-  }
-});
-
-workflowRouter.post('/save-result', async (req, res) => {
-  try {
-    const {
-      startUrl,
-      requestedFields,
-      findings,
-      pageResults,
-      directions,
-      summarizePrompt,
-      fieldPrompt,
-      localLlmModel,
-    } = req.body as {
-      startUrl?: string;
-      requestedFields?: string[];
-      findings?: FieldFinding[];
-      pageResults?: PageWorkflowResult[];
-      directions?: string;
-      summarizePrompt?: string;
-      fieldPrompt?: string;
-      localLlmModel?: string;
-    };
-    if (!startUrl?.trim()) {
-      res.status(400).json({ error: 'startUrl is required' });
-      return;
-    }
-    if (!requestedFields?.length) {
-      res.status(400).json({ error: 'requestedFields is required' });
-      return;
-    }
-    const result = await workflowSaveResult(
-      startUrl.trim(),
-      {
-        requestedFields,
-        findings: findings ?? [],
-        pageResults: pageResults ?? [],
-      },
-      {
-        directions,
-        summarizePrompt,
-        fieldPrompt,
-        localLlmModel,
-      }
-    );
-    res.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: msg });

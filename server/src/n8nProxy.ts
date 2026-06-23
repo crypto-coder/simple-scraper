@@ -6,7 +6,7 @@ import type { ClientRequest } from 'http';
 import type { RequestHandler } from 'http-proxy-middleware';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
-export const N8N_PATH = '/workflow';
+const N8N_PATH = '/workflow';
 
 /** Headers from n8n that break embedded HTTP / iframe use on LAN IPs. */
 const STRIPPED_RESPONSE_HEADERS = [
@@ -21,6 +21,13 @@ function rewriteN8nPath(path: string): string {
   return rewritten.startsWith('/') ? rewritten : `/${rewritten}`;
 }
 
+function expectedOriginFromRequest(req: IncomingMessage): string | null {
+  const host = req.headers.host;
+  if (!host) return null;
+  const proto = req.headers['x-forwarded-proto'] ?? 'http';
+  return `${proto}://${host}`;
+}
+
 function applyN8nProxyHeaders(proxyReq: ClientRequest, req: IncomingMessage): void {
   const host = req.headers.host;
   if (host) {
@@ -32,6 +39,12 @@ function applyN8nProxyHeaders(proxyReq: ClientRequest, req: IncomingMessage): vo
   proxyReq.setHeader('X-Forwarded-Proto', String(proto));
   proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress ?? '127.0.0.1');
   proxyReq.setHeader('X-Forwarded-Prefix', N8N_PATH);
+
+  // SSE /rest/push often arrives without Origin; n8n rejects that unless it matches Host.
+  const origin = req.headers.origin ?? expectedOriginFromRequest(req);
+  if (origin) {
+    proxyReq.setHeader('Origin', origin);
+  }
 }
 
 function stripProblematicHeaders(proxyRes: IncomingMessage): void {
@@ -89,5 +102,3 @@ export function handleN8nUpgrade(
 
   proxy.upgrade(req, socket as Socket, head);
 }
-
-export const N8N_WORKFLOW_URL = `${N8N_PATH}/`;

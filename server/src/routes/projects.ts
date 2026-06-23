@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Router } from 'express';
-import { deleteDocument, getDocument, listDocuments, putDocument } from '../services/couchClient';
+import { getDocument, listDocuments, putDocument } from '../services/couchClient';
 import type { CouchDoc, Project } from '../types/records';
 
 export const projectsRouter = Router();
@@ -14,19 +14,6 @@ projectsRouter.get('/', async (_req, res) => {
       .map(stripCouchMeta)
       .sort((a, b) => a.project_name.localeCompare(b.project_name));
     res.json(projects);
-  } catch (err) {
-    res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
-  }
-});
-
-projectsRouter.get('/:id', async (req, res) => {
-  try {
-    const doc = await getDocument<CouchDoc<Project>>('projects', req.params.id);
-    if (!doc) {
-      res.status(404).json({ error: 'Project not found' });
-      return;
-    }
-    res.json(stripCouchMeta(doc));
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
   }
@@ -76,20 +63,6 @@ projectsRouter.put('/:id', async (req, res) => {
       _rev: existing?._rev,
     });
     res.json({ ...body, _rev: saved.rev });
-  } catch (err) {
-    res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
-  }
-});
-
-projectsRouter.delete('/:id', async (req, res) => {
-  try {
-    const existing = await getDocument<CouchDoc<Project>>('projects', req.params.id);
-    if (!existing?._rev) {
-      res.status(404).json({ error: 'Project not found' });
-      return;
-    }
-    await deleteDocument('projects', req.params.id, existing._rev);
-    res.json({ ok: true });
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
   }

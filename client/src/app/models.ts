@@ -77,12 +77,3 @@ export interface Execution {
   project: Project;
   results: Result[];
 }
-
-export interface Scrape {
-  scrape_id: string;
-  execution_id: string;
-  page_url: string;
-  scrape_date: string;
-  scraped_text: string;
-  summarized_text: string;
-}

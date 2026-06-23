@@ -46,16 +46,12 @@ export function saveSettings(settings: AppSettings): AppSettings {
   return merged;
 }
 
-export function applySettingsToEnv(settings: AppSettings): void {
+function applySettingsToEnv(settings: AppSettings): void {
   process.env.CLOUD_LLM_URL = settings.CLOUD_LLM_URL;
   process.env.CLOUD_LLM_API_KEY = settings.CLOUD_LLM_API_KEY;
   process.env.LOCAL_LLM_MODEL = settings.LOCAL_LLM_MODEL;
   process.env.OLLAMA_MODELS = settings.OLLAMA_MODELS;
   process.env.OUTPUT_FOLDER = settings.OUTPUT_FOLDER;
-}
-
-export function resolvePath(relativePath: string): string {
-  return path.isAbsolute(relativePath) ? relativePath : path.join(process.cwd(), relativePath);
 }
 
 applySettingsToEnv(getSettings());

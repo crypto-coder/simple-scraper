@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "server": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["tsx"]
+    },
+    "client": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@angular-devkit/build-angular", "@angular/cli", "@angular/compiler-cli"]
+    }
+  },
+  "ignore": [
+    "server/public/**",
+    "server/dist/**",
+    "client/dist/**",
+    "runtime/**",
+    "n8n/**",
+    "scripts/**",
+    "couchdb/**"
+  ]
+}

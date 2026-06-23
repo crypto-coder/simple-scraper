@@ -57,14 +57,3 @@ export async function putDocument<T extends { _id?: string; _rev?: string }>(
   }
   return (await res.json()) as { id: string; rev: string };
 }
-
-export async function deleteDocument(db: string, id: string, rev: string): Promise<void> {
-  const res = await fetch(
-    `${COUCHDB_INTERNAL_URL}/${encodeURIComponent(db)}/${encodeURIComponent(id)}?rev=${encodeURIComponent(rev)}`,
-    { method: 'DELETE', headers: authHeaders() }
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to delete '${db}/${id}' (${res.status}): ${text}`);
-  }
-}

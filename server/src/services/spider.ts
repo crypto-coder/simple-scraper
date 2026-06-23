@@ -1,19 +1,9 @@
-import fs from 'fs';
-import path from 'path';
 import * as cheerio from 'cheerio';
-import { resolvePath } from '../config';
 
 const MAX_PAGES = 50;
 const FETCH_TIMEOUT_MS = 15000;
 
-export interface ScrapedPage {
-  url: string;
-  htmlPath: string;
-  textPath: string;
-  text: string;
-}
-
-export interface CrawledPage {
+interface CrawledPage {
   url: string;
   html: string;
   text: string;
@@ -63,7 +53,7 @@ async function fetchPage(url: string): Promise<string> {
   }
 }
 
-export function extractVisibleText(html: string): string {
+function extractVisibleText(html: string): string {
   const $ = cheerio.load(html);
   $('script, style, noscript, svg, iframe').remove();
   return $('body').text().replace(/\s+/g, ' ').trim();
@@ -82,7 +72,7 @@ function extractLinks(html: string, pageUrl: string): string[] {
 }
 
 /** BFS crawl of same-origin pages; returns each page's URL, HTML, and extracted text. */
-export async function crawlWebsite(startUrl: string): Promise<CrawledPage[]> {
+async function crawlWebsite(startUrl: string): Promise<CrawledPage[]> {
   const start = normalizeUrl(startUrl, startUrl);
   if (!start) throw new Error(`Invalid start URL: ${startUrl}`);
 
@@ -124,41 +114,4 @@ export async function discoverPageUrls(startUrl: string): Promise<string[]> {
 export async function scrapePageText(url: string): Promise<{ url: string; text: string }> {
   const html = await fetchPage(url);
   return { url, text: extractVisibleText(html) };
-}
-
-export async function spiderWebsite(
-  startUrl: string,
-  tempDir: string
-): Promise<ScrapedPage[]> {
-  fs.mkdirSync(tempDir, { recursive: true });
-  const crawled = await crawlWebsite(startUrl);
-  const pages: ScrapedPage[] = [];
-
-  for (const page of crawled) {
-    const slug = Buffer.from(page.url).toString('base64url').slice(0, 32);
-    const htmlPath = path.join(tempDir, `${slug}.html`);
-    const textPath = path.join(tempDir, `${slug}.txt`);
-    fs.writeFileSync(htmlPath, page.html, 'utf-8');
-    fs.writeFileSync(textPath, page.text, 'utf-8');
-    pages.push({
-      url: page.url,
-      htmlPath,
-      textPath,
-      text: page.text,
-    });
-  }
-
-  return pages;
-}
-
-export function cleanupTempDir(tempDir: string): void {
-  if (fs.existsSync(tempDir)) {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-}
-
-export function getOutputDir(): string {
-  const dir = resolvePath(process.env.OUTPUT_FOLDER ?? './output');
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
 }

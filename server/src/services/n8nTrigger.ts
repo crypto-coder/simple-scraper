@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { DEFAULT_FIELD_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from '../prompts';
-import type { Project, ScrapeRequest } from '../types';
+import type { Project } from '../types/records';
+import type { ScrapeRequest } from '../types';
 
 export async function triggerScrapeWorkflow(
   jobId: string,

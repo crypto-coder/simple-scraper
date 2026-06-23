@@ -1,6 +1,6 @@
 const N8N_INTERNAL_URL = process.env.N8N_INTERNAL_URL ?? 'http://127.0.0.1:5678';
 
-export function getN8nOwnerCredentials(): { email: string; password: string } {
+function getN8nOwnerCredentials(): { email: string; password: string } {
   return {
     email: process.env.N8N_OWNER_EMAIL ?? 'owner@simple-scraper.local',
     password: process.env.N8N_OWNER_PASSWORD ?? 'simple-scraper',
@@ -8,7 +8,7 @@ export function getN8nOwnerCredentials(): { email: string; password: string } {
 }
 
 /** Normalize n8n auth cookies for the /workflow/ iframe on plain HTTP. */
-export function normalizeN8nCookies(cookies: string[]): string[] {
+function normalizeN8nCookies(cookies: string[]): string[] {
   const useHttps = (process.env.PUBLIC_BASE_URL ?? '').startsWith('https://');
 
   return cookies.map((cookie) => {

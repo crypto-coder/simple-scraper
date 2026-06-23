@@ -96,7 +96,11 @@ workflowRouter.post('/summarize', async (req, res) => {
       localLlmModel?: string;
     };
     if (!text?.trim()) {
-      res.status(400).json({ error: 'text is required' });
+      const empty = { summary: '', summaryLength: 0 };
+      if (scrape_id?.trim()) {
+        await updateScrapeSummarizedText(scrape_id.trim(), '');
+      }
+      res.json(empty);
       return;
     }
     const result = await workflowSummarize(text, {
@@ -133,11 +137,7 @@ workflowRouter.post('/extract-field', async (req, res) => {
       res.status(400).json({ error: 'field is required' });
       return;
     }
-    if (!context?.trim()) {
-      res.status(400).json({ error: 'context is required' });
-      return;
-    }
-    const result = await workflowExtractField(field.trim(), context, {
+    const result = await workflowExtractField(field.trim(), context ?? '', {
       directions,
       summarizePrompt,
       fieldPrompt,

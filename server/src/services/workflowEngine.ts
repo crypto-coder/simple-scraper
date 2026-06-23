@@ -28,6 +28,8 @@ export async function workflowScrapePage(pageUrl: string): Promise<{
   url: string;
   text: string;
   textLength: number;
+  ok: boolean;
+  error?: string;
 }> {
   const result = await scrapePageText(pageUrl);
   return { ...result, textLength: result.text.length };
@@ -37,6 +39,9 @@ export async function workflowSummarize(
   text: string,
   config: WorkflowConfig = {}
 ): Promise<{ summary: string; summaryLength: number }> {
+  if (!text.trim()) {
+    return { summary: '', summaryLength: 0 };
+  }
   await resolveModel(config.localLlmModel);
   const summary = await summarizeText(
     text,
@@ -51,6 +56,19 @@ export async function workflowExtractField(
   context: string,
   config: WorkflowConfig = {}
 ): Promise<FieldResult & { fieldQuestion: string }> {
+  const label = field.replace(/[_-]+/g, ' ').trim();
+  const fieldQuestion = `What is the ${label}?`;
+
+  if (!context.trim()) {
+    return {
+      field,
+      value: null,
+      confidence: 'none',
+      sourcePages: [],
+      fieldQuestion,
+    };
+  }
+
   await resolveModel(config.localLlmModel);
   const hint = config.extractHint?.trim();
   const directions = hint
@@ -63,12 +81,11 @@ export async function workflowExtractField(
     config.fieldPrompt ?? DEFAULT_FIELD_PROMPT,
     config.localLlmModel
   );
-  const label = field.replace(/[_-]+/g, ' ').trim();
   return {
     field,
     value: answer.present ? answer.value : null,
     confidence: answer.confidence,
     sourcePages: [],
-    fieldQuestion: `What is the ${label}?`,
+    fieldQuestion,
   };
 }

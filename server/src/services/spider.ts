@@ -110,8 +110,19 @@ export async function discoverPageUrls(startUrl: string): Promise<string[]> {
   return pages.map((p) => p.url);
 }
 
-/** Fetch and extract visible text from a single page. */
-export async function scrapePageText(url: string): Promise<{ url: string; text: string }> {
-  const html = await fetchPage(url);
-  return { url, text: extractVisibleText(html) };
+/** Fetch and extract visible text from a single page. Never throws — returns empty text on failure. */
+export async function scrapePageText(url: string): Promise<{
+  url: string;
+  text: string;
+  ok: boolean;
+  error?: string;
+}> {
+  try {
+    const html = await fetchPage(url);
+    const text = extractVisibleText(html);
+    return { url, text, ok: text.trim().length > 0 };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { url, text: '', ok: false, error: message };
+  }
 }

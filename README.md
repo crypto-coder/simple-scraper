@@ -70,7 +70,7 @@ If the embedded n8n editor returns **408 Request Timeout** when saving, rebuild 
 If `docker compose up` fails with **`n8n is unhealthy`**, check `docker inspect site_scraper-n8n-1 --format='{{json .State.Health}}'`. The health probe must hit `http://127.0.0.1:5678/healthz` (not `localhost` — Docker resolves that to IPv6 while n8n listens on IPv4). A log line about **Python task runner / virtual environment missing** is expected and harmless for this stack; workflows use JS Code nodes only.
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v11
+rm -f runtime/n8n/.website-scraper-imported-v12
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```
@@ -230,7 +230,7 @@ On first Docker start, the `n8n-import` service automatically imports and activa
 **Re-import after workflow changes** (one-time):
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v11
+rm -f runtime/n8n/.website-scraper-imported-v12
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```

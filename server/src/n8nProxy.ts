@@ -4,7 +4,7 @@ import type { Socket } from 'net';
 import type { Duplex } from 'stream';
 import type { ClientRequest } from 'http';
 import type { RequestHandler } from 'http-proxy-middleware';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 
 const N8N_PATH = '/workflow';
 
@@ -68,12 +68,20 @@ export function mountN8nProxy(app: Express): RequestHandler {
     on: {
       proxyReq: (proxyReq, req) => {
         applyN8nProxyHeaders(proxyReq, req);
+        fixRequestBody(proxyReq, req);
       },
       proxyReqWs: (proxyReq, req) => {
         applyN8nProxyHeaders(proxyReq, req);
       },
       proxyRes: (proxyRes) => {
         stripProblematicHeaders(proxyRes);
+      },
+      error: (err, _req, res) => {
+        console.error('n8n proxy error:', err.message);
+        if ('writeHead' in res && !res.headersSent) {
+          res.writeHead(502);
+          res.end('Bad Gateway');
+        }
       },
     },
   });

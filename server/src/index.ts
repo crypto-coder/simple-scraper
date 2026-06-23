@@ -16,6 +16,11 @@ const app = express();
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
 app.use(cors());
+
+// Proxies must register before express.json() so POST/PUT bodies stream to n8n/CouchDB.
+mountCouchProxy(app);
+const n8nProxy = mountN8nProxy(app);
+
 app.use(express.json());
 
 app.use('/api/scrape', scrapeRouter);
@@ -28,9 +33,6 @@ app.use('/api/settings', settingsRouter);
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
-
-mountCouchProxy(app);
-const n8nProxy = mountN8nProxy(app);
 
 const clientDist = path.join(__dirname, '..', 'public');
 if (fs.existsSync(clientDist)) {

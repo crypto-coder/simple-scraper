@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import type { IncomingMessage } from 'http';
 import type { ClientRequest } from 'http';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 
 const DATABASE_PATH = '/database';
 
@@ -41,6 +41,7 @@ function couchProxyOptions(pathFilter: string | ((pathname: string) => boolean),
     on: {
       proxyReq: (proxyReq: ClientRequest, req: IncomingMessage) => {
         applyCouchProxyHeaders(proxyReq, req);
+        fixRequestBody(proxyReq, req);
       },
     },
   };

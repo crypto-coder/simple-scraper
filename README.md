@@ -61,9 +61,11 @@ N8N_HOST=10.32.1.124:3000
 
 Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are usually harmless (browser extensions or n8n passkey checks) and are stripped by the proxy where possible.
 
-If saving in the embedded n8n editor fails or shows **Lost connection to the server**, rebuild after pulling the latest code. The stack uses **SSE push** (`N8N_PUSH_BACKEND=sse`) instead of WebSockets for better proxy compatibility, strips problematic security headers, and forwards the browser `Host` on all `/workflow/` requests.
+If saving in the embedded n8n editor fails or shows **Lost connection to the server**, rebuild after pulling the latest code. The stack uses **SSE push** (`N8N_PUSH_BACKEND=sse`) instead of WebSockets for better proxy compatibility, strips problematic security headers, and forwards the browser `Host` on all `/workflow/` requests. The n8n and CouchDB proxies are registered **before** `express.json()` so save requests keep their POST body (otherwise saves hang and return **408 Request Timeout**).
 
-If the embedded n8n editor returns **408 Request Timeout** when saving, rebuild `simple-scraper` after pulling the latest code (the proxy must stream responses, not buffer them). On a slow or unreliable USB disk, prefer editing `n8n/workflows/website-scraper.workflow.json` in the repo and re-importing:
+Console error *“A listener indicated an asynchronous response by returning true…”* is almost always a **browser extension** (not this app). Try a private window or disable extensions if it is distracting.
+
+If the embedded n8n editor returns **408 Request Timeout** when saving, rebuild `simple-scraper` after pulling the latest code. On a slow or unreliable USB disk, prefer editing `n8n/workflows/website-scraper.workflow.json` in the repo and re-importing:
 
 If `docker compose up` fails with **`n8n is unhealthy`**, check `docker inspect site_scraper-n8n-1 --format='{{json .State.Health}}'`. The health probe must hit `http://127.0.0.1:5678/healthz` (not `localhost` — Docker resolves that to IPv6 while n8n listens on IPv4). A log line about **Python task runner / virtual environment missing** is expected and harmless for this stack; workflows use JS Code nodes only.
 

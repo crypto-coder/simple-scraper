@@ -7,6 +7,24 @@ export function getN8nOwnerCredentials(): { email: string; password: string } {
   };
 }
 
+/** Normalize n8n auth cookies for the /workflow/ iframe on plain HTTP. */
+export function normalizeN8nCookies(cookies: string[]): string[] {
+  const useHttps = (process.env.PUBLIC_BASE_URL ?? '').startsWith('https://');
+
+  return cookies.map((cookie) => {
+    let normalized = cookie.replace(/;\s*Path=[^;]*/gi, '');
+    normalized = normalized.replace(/;\s*SameSite=[^;]*/gi, '');
+    if (!useHttps) {
+      normalized = normalized.replace(/;\s*Secure/gi, '');
+    }
+    normalized += '; Path=/; SameSite=Lax';
+    if (useHttps) {
+      normalized += '; Secure';
+    }
+    return normalized;
+  });
+}
+
 export async function loginToN8n(): Promise<string[]> {
   const { email, password } = getN8nOwnerCredentials();
 
@@ -27,9 +45,12 @@ export async function loginToN8n(): Promise<string[]> {
     throw new Error(`n8n login failed (${res.status}): ${text}`);
   }
 
-  return typeof res.headers.getSetCookie === 'function'
-    ? res.headers.getSetCookie()
-    : collectSetCookieHeaders(res.headers);
+  const cookies =
+    typeof res.headers.getSetCookie === 'function'
+      ? res.headers.getSetCookie()
+      : collectSetCookieHeaders(res.headers);
+
+  return normalizeN8nCookies(cookies);
 }
 
 function collectSetCookieHeaders(headers: Headers): string[] {

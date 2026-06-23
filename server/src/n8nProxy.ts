@@ -1,10 +1,20 @@
 import type { Express } from 'express';
 import type { IncomingMessage } from 'http';
+import type { Socket } from 'net';
+import type { Duplex } from 'stream';
 import type { ClientRequest } from 'http';
 import type { RequestHandler } from 'http-proxy-middleware';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
-const N8N_PATH = '/workflow';
+export const N8N_PATH = '/workflow';
+
+/** Headers from n8n that break embedded HTTP / iframe use on LAN IPs. */
+const STRIPPED_RESPONSE_HEADERS = [
+  'cross-origin-opener-policy',
+  'cross-origin-embedder-policy',
+  'cross-origin-resource-policy',
+  'origin-agent-cluster',
+];
 
 function rewriteN8nPath(path: string): string {
   const rewritten = path.replace(/^\/workflow\/?/, '/');
@@ -21,6 +31,13 @@ function applyN8nProxyHeaders(proxyReq: ClientRequest, req: IncomingMessage): vo
   const proto = req.headers['x-forwarded-proto'] ?? 'http';
   proxyReq.setHeader('X-Forwarded-Proto', String(proto));
   proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress ?? '127.0.0.1');
+  proxyReq.setHeader('X-Forwarded-Prefix', N8N_PATH);
+}
+
+function stripProblematicHeaders(proxyRes: IncomingMessage): void {
+  for (const header of STRIPPED_RESPONSE_HEADERS) {
+    proxyRes.headers[header] = undefined;
+  }
 }
 
 export function mountN8nProxy(app: Express): RequestHandler {
@@ -42,11 +59,35 @@ export function mountN8nProxy(app: Express): RequestHandler {
       proxyReqWs: (proxyReq, req) => {
         applyN8nProxyHeaders(proxyReq, req);
       },
+      proxyRes: (proxyRes) => {
+        stripProblematicHeaders(proxyRes);
+      },
     },
   });
 
   app.use(proxy);
   return proxy;
+}
+
+/** Handle WebSocket upgrades for n8n push (/workflow/rest/push). */
+export function handleN8nUpgrade(
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer,
+  proxy: RequestHandler
+): void {
+  const pathname = req.url?.split('?')[0] ?? '';
+  if (!pathname.startsWith(N8N_PATH)) {
+    socket.destroy();
+    return;
+  }
+
+  if (typeof proxy.upgrade !== 'function') {
+    socket.destroy();
+    return;
+  }
+
+  proxy.upgrade(req, socket as Socket, head);
 }
 
 export const N8N_WORKFLOW_URL = `${N8N_PATH}/`;

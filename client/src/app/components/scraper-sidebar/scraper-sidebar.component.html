@@ -55,10 +55,10 @@
                   type="button"
                   class="sidebar-item"
                   [class.sidebar-item--active]="execution.execution_id === selectedExecutionId"
+                  [title]="execution.execution_label"
                   (click)="onExecutionClick(execution)"
                 >
-                  <span class="sidebar-item-title">{{ execution.execution_label }}</span>
-                  <span class="sidebar-item-meta">{{ formatTime(execution.execution_time) }}</span>
+                  <span class="sidebar-item-title">{{ formatTime(execution.execution_time) }}</span>
                 </button>
               </li>
             }

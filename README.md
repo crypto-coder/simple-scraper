@@ -50,14 +50,14 @@ Update both `N8N_OWNER_PASSWORD` and `N8N_INSTANCE_OWNER_PASSWORD_HASH` in that 
 
 If the browser console shows `A listener indicated an asynchronous response...`, that message comes from a **browser extension** (password managers, VPN, ad blockers), not from this app. Try an incognito window with extensions disabled to confirm. The iframe is also kept alive across tab switches so extensions are not re-triggered on every visit.
 
-When opening the app from another machine by IP (not `localhost`), set `PUBLIC_BASE_URL` in `.env` to the URL you use in the browser, for example `http://10.32.1.124:3000`. This keeps n8n editor and webhook links consistent. Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are expected in that setup and do not block workflow execution.
+When opening the app from another machine by IP (not `localhost`), set `PUBLIC_BASE_URL` in `.env` to the URL you use in the browser, for example `http://10.32.1.124:3000`. This keeps n8n editor and webhook links consistent. Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are usually harmless (browser extensions or n8n passkey checks) and are stripped by the proxy where possible.
 
-If running a workflow in the n8n editor shows **Lost connection to the server** or repeating **Origin header does NOT match** errors in the n8n logs, rebuild after pulling the latest code — the proxy must forward the browser `Host` to n8n on WebSocket upgrades (not the internal `n8n:5678` hostname).
+If saving in the embedded n8n editor fails or shows **Lost connection to the server**, rebuild after pulling the latest code. The stack uses **SSE push** (`N8N_PUSH_BACKEND=sse`) instead of WebSockets for better proxy compatibility, strips problematic security headers, and forwards the browser `Host` on all `/workflow/` requests.
 
 If the embedded n8n editor returns **408 Request Timeout** when saving, rebuild `simple-scraper` after pulling the latest code (the proxy must stream responses, not buffer them). On a slow or unreliable USB disk, prefer editing `n8n/workflows/website-scraper.workflow.json` in the repo and re-importing:
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v8
+rm -f runtime/n8n/.website-scraper-imported-v10
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```
@@ -217,7 +217,7 @@ On first Docker start, the `n8n-import` service automatically imports and activa
 **Re-import after workflow changes** (one-time):
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v8
+rm -f runtime/n8n/.website-scraper-imported-v10
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```

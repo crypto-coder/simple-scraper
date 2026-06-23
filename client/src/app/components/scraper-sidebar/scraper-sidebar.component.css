@@ -25,11 +25,13 @@
 
 .accordion-section--open {
   flex: 1;
+  min-height: 0;
 }
 
 .accordion-header {
   display: flex;
   align-items: stretch;
+  flex: 0 0 auto;
   border-bottom: 1px solid var(--border);
 }
 
@@ -45,10 +47,12 @@
   font-size: 0.9rem;
   font-weight: 700;
   text-align: left;
+  flex-shrink: 0;
 }
 
 .accordion-toggle--solo {
   width: 100%;
+  flex: 0 0 auto;
 }
 
 .accordion-toggle:hover {

@@ -127,7 +127,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/scrape-page',\n    body: { url: page.pageUrl },\n    json: true,\n  });\n  return {\n    json: {\n      ...page,\n      text: response.text,\n      textLength: response.textLength,\n      scrapedUrl: response.url,\n    },\n  };\n}));"
+        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  const body = { url: page.pageUrl };\n  if (page.executionId) {\n    body.execution_id = page.executionId;\n  }\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/scrape-page',\n    body,\n    json: true,\n  });\n  if (page.executionId && !response.scrape_id) {\n    throw new Error('scrape-page did not return scrape_id for ' + page.pageUrl);\n  }\n  return {\n    json: {\n      ...page,\n      text: response.text ?? '',\n      textLength: response.textLength ?? (response.text?.length ?? 0),\n      scrapedUrl: response.url ?? page.pageUrl,\n      scrape_id: response.scrape_id ?? null,\n      scrape_date: response.scrape_date ?? null,\n    },\n  };\n}));"
       },
       "id": "a1b2c3d4-0008-4000-8000-000000000008",
       "name": "Scrape Pages",
@@ -149,7 +149,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (page.text?.trim() && page.summary != null) {\n    await this.helpers.httpRequest({\n      method: 'POST',\n      url: page.scraperBaseUrl + '/api/workflow/save-scrape',\n      body: {\n        execution_id: page.executionId,\n        page_url: page.pageUrl,\n        scraped_text: page.text,\n        summarized_text: page.summary,\n      },\n      json: true,\n    });\n  }\n  return { json: page };\n}));"
+        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (!page.scrape_id) {\n    throw new Error('Missing scrape_id for ' + page.pageUrl + ' — rebuild simple-scraper and re-import the workflow');\n  }\n  if (!page.executionId) {\n    throw new Error('Missing executionId for ' + page.pageUrl);\n  }\n  const saved = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/save-scrape',\n    body: {\n      scrape_id: page.scrape_id,\n      execution_id: page.executionId,\n      page_url: page.pageUrl,\n      scraped_text: page.text ?? '',\n      summarized_text: page.summary ?? '',\n    },\n    json: true,\n  });\n  return {\n    json: {\n      ...page,\n      scrape_id: saved.scrape_id ?? page.scrape_id,\n      scrape_date: saved.scrape_date ?? page.scrape_date,\n    },\n  };\n}));"
       },
       "id": "a1b2c3d4-0024-4000-8000-000000000024",
       "name": "Save Scrapes",
@@ -199,7 +199,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Split Fields').item.json;\nconst extracted = $json.body ?? $json;\nconst found = extracted.value != null && String(extracted.value).trim() !== '';\nreturn [{\n  json: {\n    jobId: ctx.jobId,\n    executionId: ctx.executionId,\n    startUrl: ctx.startUrl,\n    pageUrl: ctx.pageUrl,\n    summary: ctx.summary,\n    directions: ctx.directions,\n    summarizePrompt: ctx.summarizePrompt,\n    fieldPrompt: ctx.fieldPrompt,\n    localLlmModel: ctx.localLlmModel,\n    scraperBaseUrl: ctx.scraperBaseUrl,\n    field: extracted.field,\n    value: found ? extracted.value : null,\n    present: found,\n    confidence: extracted.confidence,\n    fieldQuestion: extracted.fieldQuestion,\n    logLevel: found ? 'success' : 'info',\n    logMessage: found\n      ? 'Found \"' + extracted.field + '\" on ' + ctx.pageUrl + ': ' + extracted.value\n      : 'Field \"' + extracted.field + '\" not on ' + ctx.pageUrl,\n  },\n}];"
+        "jsCode": "const ctx = $('Split Fields').item.json;\nconst extracted = $json.body ?? $json;\nconst found = extracted.value != null && String(extracted.value).trim() !== '';\nreturn [{\n  json: {\n    jobId: ctx.jobId,\n    executionId: ctx.executionId,\n    scrape_id: ctx.scrape_id,\n    scrape_date: ctx.scrape_date,\n    startUrl: ctx.startUrl,\n    pageUrl: ctx.pageUrl,\n    summary: ctx.summary,\n    directions: ctx.directions,\n    summarizePrompt: ctx.summarizePrompt,\n    fieldPrompt: ctx.fieldPrompt,\n    localLlmModel: ctx.localLlmModel,\n    scraperBaseUrl: ctx.scraperBaseUrl,\n    field: extracted.field,\n    value: found ? extracted.value : null,\n    present: found,\n    confidence: extracted.confidence,\n    fieldQuestion: extracted.fieldQuestion,\n    logLevel: found ? 'success' : 'info',\n    logMessage: found\n      ? 'Found \"' + extracted.field + '\" on ' + ctx.pageUrl + ': ' + extracted.value\n      : 'Field \"' + extracted.field + '\" not on ' + ctx.pageUrl,\n  },\n}];"
       },
       "id": "a1b2c3d4-0015-4000-8000-000000000015",
       "name": "Merge Field Result",

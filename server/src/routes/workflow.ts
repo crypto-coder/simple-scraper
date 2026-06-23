@@ -10,7 +10,7 @@ import {
   type FieldFinding,
   type PageWorkflowResult,
 } from '../services/workflowEngine';
-import { appendExecutionResults, saveScrapeRecord } from '../services/workflowCouch';
+import { appendExecutionResults, saveScrapeRecord, upsertScrapeRecord } from '../services/workflowCouch';
 import type { Result } from '../types/records';
 
 export const workflowRouter = Router();
@@ -63,12 +63,24 @@ workflowRouter.post('/spider', async (req, res) => {
 
 workflowRouter.post('/scrape-page', async (req, res) => {
   try {
-    const { url } = req.body as { url?: string };
+    const { url, execution_id } = req.body as { url?: string; execution_id?: string };
     if (!url?.trim()) {
       res.status(400).json({ error: 'url is required' });
       return;
     }
     const result = await workflowScrapePage(url.trim());
+
+    if (execution_id?.trim()) {
+      const scrape = await saveScrapeRecord({
+        execution_id: execution_id.trim(),
+        page_url: url.trim(),
+        scraped_text: result.text,
+        summarized_text: '',
+      });
+      res.json({ ...result, scrape_id: scrape.scrape_id, scrape_date: scrape.scrape_date });
+      return;
+    }
+
     res.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -138,7 +150,8 @@ workflowRouter.post('/extract-field', async (req, res) => {
 
 workflowRouter.post('/save-scrape', async (req, res) => {
   try {
-    const { execution_id, page_url, scraped_text, summarized_text } = req.body as {
+    const { scrape_id, execution_id, page_url, scraped_text, summarized_text } = req.body as {
+      scrape_id?: string;
       execution_id?: string;
       page_url?: string;
       scraped_text?: string;
@@ -152,13 +165,14 @@ workflowRouter.post('/save-scrape', async (req, res) => {
       res.status(400).json({ error: 'page_url is required' });
       return;
     }
-    const scrape = await saveScrapeRecord({
+    const scrape = await upsertScrapeRecord({
+      scrape_id: scrape_id?.trim(),
       execution_id: execution_id.trim(),
       page_url: page_url.trim(),
       scraped_text: scraped_text ?? '',
       summarized_text: summarized_text ?? '',
     });
-    res.status(201).json(scrape);
+    res.status(scrape_id ? 200 : 201).json(scrape);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: msg });

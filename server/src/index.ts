@@ -4,7 +4,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { mountCouchProxy } from './couchProxy';
-import { mountN8nProxy } from './n8nProxy';
+import { handleN8nUpgrade, mountN8nProxy } from './n8nProxy';
 import { databaseRouter } from './routes/database';
 import { executionsRouter } from './routes/executions';
 import { projectsRouter } from './routes/projects';
@@ -46,7 +46,9 @@ const server = http.createServer(app);
 server.requestTimeout = 0;
 server.headersTimeout = 0;
 server.timeout = 0;
-server.on('upgrade', n8nProxy.upgrade);
+server.on('upgrade', (req, socket, head) => {
+  handleN8nUpgrade(req, socket, head, n8nProxy);
+});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Site Scraper server listening on http://0.0.0.0:${PORT}`);

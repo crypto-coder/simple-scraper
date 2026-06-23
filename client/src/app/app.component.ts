@@ -8,11 +8,11 @@ import { WorkflowTabComponent } from './components/workflow-tab/workflow-tab.com
 import type {
   AppSettings,
   Execution,
-  LlmOption,
   OutputField,
   Project,
   ScrapeProgress,
 } from './models';
+import { LOCAL_LLM_OPTIONS } from './models';
 import { ExecutionService } from './services/execution.service';
 import { ProjectService } from './services/project.service';
 import { ScrapeService } from './services/scrape.service';
@@ -43,8 +43,8 @@ export class AppComponent implements OnInit, OnDestroy {
   prompt = '';
   summarizePrompt = '';
   fieldPrompt = '';
-  selectedModel = 'gemma4:e4b';
-  models: LlmOption[] = [];
+  selectedModel = LOCAL_LLM_OPTIONS[0].id;
+  models = LOCAL_LLM_OPTIONS;
 
   projects: Project[] = [];
   executions: Execution[] = [];
@@ -78,14 +78,11 @@ export class AppComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.projectId = crypto.randomUUID();
     this.scrapeService.startStream();
     this.loadProjects();
     this.loadExecutions();
+    this.loadModels();
 
-    this.subs.add(
-      this.scrapeService.getModels().subscribe((m) => (this.models = m))
-    );
     this.subs.add(
       this.scrapeService.getPromptDefaults().subscribe((d) => {
         this.summarizePrompt = d.summarizePrompt;
@@ -135,6 +132,23 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadModels(): void {
+    this.scrapeService.getModels().subscribe({
+      next: (models) => {
+        if (models.length) {
+          this.models = models;
+          if (!this.models.some((m) => m.id === this.selectedModel)) {
+            this.selectedModel = this.models[0].id;
+          }
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load LLM models, using defaults', err);
+        this.models = LOCAL_LLM_OPTIONS;
+      },
+    });
+  }
+
   loadExecutions(): void {
     this.loadingExecutions = true;
     this.executionService.list().subscribe({
@@ -167,7 +181,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.selectedProjectId = null;
     this.selectedExecutionId = null;
     this.selectedExecution = null;
-    this.projectId = crypto.randomUUID();
+    this.projectId = '';
     this.projectName = '';
     this.urlsText = '';
     this.outputFields = [{ field_name: '', extract_hint: '' }];
@@ -195,7 +209,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.saveMessage = null;
   }
 
-  buildProject(): Project | null {
+  buildProjectInput(): Omit<Project, 'project_id'> | null {
     const website_urls = this.parseLines(this.urlsText);
     const output_fields = this.outputFields
       .map((f) => ({
@@ -208,7 +222,6 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!website_urls.length || !output_fields.length) return null;
 
     return {
-      project_id: this.projectId,
       project_name: this.projectName.trim(),
       website_urls,
       output_fields,
@@ -220,17 +233,23 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   onSaveProject(): void {
-    const project = this.buildProject();
-    if (!project) {
+    const input = this.buildProjectInput();
+    if (!input) {
       this.saveMessage = 'Project name, at least one URL, and one output field are required.';
       return;
     }
 
     this.savingProject = true;
     this.saveMessage = null;
-    this.projectService.save(project).subscribe({
+
+    const save$ = this.selectedProjectId
+      ? this.projectService.update({ ...input, project_id: this.selectedProjectId })
+      : this.projectService.create(input);
+
+    save$.subscribe({
       next: (saved) => {
         this.savingProject = false;
+        this.projectId = saved.project_id;
         this.selectedProjectId = saved.project_id;
         this.saveMessage = 'Project saved.';
         this.loadProjects();
@@ -314,18 +333,18 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const project = this.buildProject();
-    if (!project) return;
+    const input = this.buildProjectInput();
+    if (!input) return;
 
     this.showProgress = true;
     this.scrapeService
       .startScrape({
-        urls: project.website_urls,
-        fields: project.output_fields.map((f) => f.field_name),
-        prompt: project.main_prompt,
-        summarizePrompt: project.summarize_prompt,
-        fieldPrompt: project.field_extract_prompt,
-        localLlmModel: project.local_llm,
+        urls: input.website_urls,
+        fields: input.output_fields.map((f) => f.field_name),
+        prompt: input.main_prompt,
+        summarizePrompt: input.summarize_prompt,
+        fieldPrompt: input.field_extract_prompt,
+        localLlmModel: input.local_llm,
       })
       .subscribe({
         error: (err) => console.error('Failed to start scrape', err),

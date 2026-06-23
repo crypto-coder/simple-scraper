@@ -18,6 +18,13 @@ export interface LlmOption {
   label: string;
 }
 
+/** Keep in sync with server/src/types.ts LOCAL_LLM_OPTIONS */
+export const LOCAL_LLM_OPTIONS: LlmOption[] = [
+  { id: 'gemma4:e4b', label: 'Gemma 4 (E4B)' },
+  { id: 'qwen3:8b', label: 'Qwen 3 (8B)' },
+  { id: 'qwen2.5:7b', label: 'Qwen 2.5 (7B)' },
+];
+
 export interface AppSettings {
   CLOUD_LLM_URL: string;
   CLOUD_LLM_API_KEY: string;

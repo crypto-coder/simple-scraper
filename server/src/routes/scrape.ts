@@ -6,7 +6,7 @@ import { LOCAL_LLM_OPTIONS, type ScrapeRequest } from '../types';
 export const scrapeRouter = Router();
 
 scrapeRouter.get('/models', (_req, res) => {
-  res.json(LOCAL_LLM_OPTIONS);
+  res.json([...LOCAL_LLM_OPTIONS]);
 });
 
 scrapeRouter.get('/prompt-defaults', (_req, res) => {

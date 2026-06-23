@@ -1,12 +1,3 @@
-# n8n with Python 3 so internal task runner init does not log errors (workflows use JS only).
-# Official n8n image is a hardened Alpine without apk; copy python from a normal Alpine stage.
-FROM alpine:3.22 AS python
-RUN apk add --no-cache python3
-
+# n8n for Simple Scraper. Workflows use JS Code nodes only; Python Code nodes need
+# the separate n8nio/runners sidecar (see n8n task-runner docs).
 FROM docker.n8n.io/n8nio/n8n:latest
-
-USER root
-COPY --from=python /usr/bin/python3 /usr/bin/python3
-COPY --from=python /usr/lib/libpython3.12.so* /usr/lib/
-COPY --from=python /usr/lib/python3.12 /usr/lib/python3.12
-USER node

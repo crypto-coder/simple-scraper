@@ -7,7 +7,7 @@ import {
   workflowSpider,
   workflowSummarize,
 } from '../services/workflowEngine';
-import { appendExecutionResults, saveScrapeRecord, upsertScrapeRecord } from '../services/workflowCouch';
+import { appendExecutionResults, saveScrapeRecord, updateScrapeSummarizedText } from '../services/workflowCouch';
 import type { Result } from '../types/records';
 
 export const workflowRouter = Router();
@@ -87,8 +87,9 @@ workflowRouter.post('/scrape-page', async (req, res) => {
 
 workflowRouter.post('/summarize', async (req, res) => {
   try {
-    const { text, directions, summarizePrompt, fieldPrompt, localLlmModel } = req.body as {
+    const { text, scrape_id, directions, summarizePrompt, fieldPrompt, localLlmModel } = req.body as {
       text?: string;
+      scrape_id?: string;
       directions?: string;
       summarizePrompt?: string;
       fieldPrompt?: string;
@@ -104,6 +105,11 @@ workflowRouter.post('/summarize', async (req, res) => {
       fieldPrompt,
       localLlmModel,
     });
+
+    if (scrape_id?.trim()) {
+      await updateScrapeSummarizedText(scrape_id.trim(), result.summary);
+    }
+
     res.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -139,37 +145,6 @@ workflowRouter.post('/extract-field', async (req, res) => {
       extractHint,
     });
     res.json(result);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: msg });
-  }
-});
-
-workflowRouter.post('/save-scrape', async (req, res) => {
-  try {
-    const { scrape_id, execution_id, page_url, scraped_text, summarized_text } = req.body as {
-      scrape_id?: string;
-      execution_id?: string;
-      page_url?: string;
-      scraped_text?: string;
-      summarized_text?: string;
-    };
-    if (!execution_id?.trim()) {
-      res.status(400).json({ error: 'execution_id is required' });
-      return;
-    }
-    if (!page_url?.trim()) {
-      res.status(400).json({ error: 'page_url is required' });
-      return;
-    }
-    const scrape = await upsertScrapeRecord({
-      scrape_id: scrape_id?.trim(),
-      execution_id: execution_id.trim(),
-      page_url: page_url.trim(),
-      scraped_text: scraped_text ?? '',
-      summarized_text: summarized_text ?? '',
-    });
-    res.status(scrape_id ? 200 : 201).json(scrape);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: msg });

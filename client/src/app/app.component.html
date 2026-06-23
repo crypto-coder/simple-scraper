@@ -180,8 +180,20 @@
 
         @if (selectedExecution) {
           <section class="execution-results">
-            <h2 class="execution-results-title">{{ selectedExecution.execution_label }}</h2>
-            <p class="execution-results-meta">{{ selectedExecution.results.length }} result{{ selectedExecution.results.length === 1 ? '' : 's' }}</p>
+            <div class="execution-results-header">
+              <div>
+                <h2 class="execution-results-title">{{ selectedExecution.execution_label }}</h2>
+                <p class="execution-results-meta">{{ selectedExecution.results.length }} result{{ selectedExecution.results.length === 1 ? '' : 's' }}</p>
+              </div>
+              <button
+                type="button"
+                class="btn-delete"
+                (click)="onDeleteExecutionClick()"
+                [disabled]="isRunning || deletingExecution"
+              >
+                Delete
+              </button>
+            </div>
             @if (selectedExecution.results.length) {
               <div class="results-table-wrap">
                 <table class="results-table">
@@ -236,6 +248,14 @@
       [settings]="settings"
       (save)="onSettingsSave($event)"
       (cancel)="onSettingsCancel()"
+    />
+  }
+
+  @if (showDeleteExecutionConfirm && selectedExecution) {
+    <app-confirm-modal
+      message="Delete this execution and all {{ selectedExecution.scrapes.length }} associated scrape{{ selectedExecution.scrapes.length === 1 ? '' : 's' }}? This cannot be undone."
+      (confirm)="onConfirmDeleteExecution()"
+      (cancel)="onCancelDeleteExecution()"
     />
   }
 </div>

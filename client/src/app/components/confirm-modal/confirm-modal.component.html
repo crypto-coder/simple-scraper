@@ -1,0 +1,14 @@
+<div class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal" role="dialog" aria-labelledby="confirm-title">
+    <header class="modal-header">
+      <h2 id="confirm-title">Are you sure?</h2>
+    </header>
+    <div class="modal-body">
+      <p>{{ message }}</p>
+    </div>
+    <footer class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="onCancel()">{{ cancelLabel }}</button>
+      <button type="button" class="btn btn-danger" (click)="onConfirm()">{{ confirmLabel }}</button>
+    </footer>
+  </div>
+</div>

@@ -10,4 +10,12 @@ export class ExecutionService {
   list(): Observable<Execution[]> {
     return this.http.get<Execution[]>('/api/executions');
   }
+
+  get(id: string): Observable<Execution> {
+    return this.http.get<Execution>(`/api/executions/${encodeURIComponent(id)}`);
+  }
+
+  delete(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`/api/executions/${encodeURIComponent(id)}`);
+  }
 }

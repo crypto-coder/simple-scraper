@@ -26,6 +26,7 @@ export interface Execution {
   execution_time: string;
   project: Project;
   results: Result[];
+  scrapes: string[];
 }
 
 export interface Scrape {

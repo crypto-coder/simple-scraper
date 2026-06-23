@@ -65,8 +65,10 @@ If saving in the embedded n8n editor fails or shows **Lost connection to the ser
 
 If the embedded n8n editor returns **408 Request Timeout** when saving, rebuild `simple-scraper` after pulling the latest code (the proxy must stream responses, not buffer them). On a slow or unreliable USB disk, prefer editing `n8n/workflows/website-scraper.workflow.json` in the repo and re-importing:
 
+If `docker compose up` fails with **`n8n is unhealthy`**, check `docker inspect site_scraper-n8n-1 --format='{{json .State.Health}}'`. The health probe must hit `http://127.0.0.1:5678/healthz` (not `localhost` — Docker resolves that to IPv6 while n8n listens on IPv4). A log line about **Python task runner / virtual environment missing** is expected and harmless for this stack; workflows use JS Code nodes only.
+
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v10
+rm -f runtime/n8n/.website-scraper-imported-v11
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```
@@ -226,7 +228,7 @@ On first Docker start, the `n8n-import` service automatically imports and activa
 **Re-import after workflow changes** (one-time):
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v10
+rm -f runtime/n8n/.website-scraper-imported-v11
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```
@@ -275,6 +277,8 @@ simple-scraper/
 | POST | `/api/projects` | Create a project |
 | PUT | `/api/projects/:id` | Update a project |
 | GET | `/api/executions` | List scrape executions |
+| GET | `/api/executions/:id` | Get one execution (includes `scrapes` scrape IDs) |
+| DELETE | `/api/executions/:id` | Delete execution and its associated scrape records |
 
 ### n8n workflow steps
 
@@ -282,8 +286,7 @@ simple-scraper/
 |--------|------|-------------|
 | POST | `/api/workflow/spider` | `{ url }` → `{ url, pages[] }` |
 | POST | `/api/workflow/scrape-page` | `{ url, execution_id? }` → page text (+ `scrape_id` when `execution_id` set) |
-| POST | `/api/workflow/summarize` | `{ text, summarizePrompt?, localLlmModel? }` → `{ summary }` |
+| POST | `/api/workflow/summarize` | `{ text, scrape_id?, summarizePrompt?, localLlmModel? }` → `{ summary }` (updates scrape `summarized_text` when `scrape_id` set) |
 | POST | `/api/workflow/extract-field` | `{ field, context, fieldPrompt?, directions? }` → field Q&A result |
-| POST | `/api/workflow/save-scrape` | Upsert scrape record in CouchDB |
 | POST | `/api/workflow/save-execution` | Append field results to execution in CouchDB |
 | POST | `/api/workflow/progress/:jobId/event` | Progress callbacks from n8n (`log`, `url_start`, `url_done`, `complete`, `error`) |

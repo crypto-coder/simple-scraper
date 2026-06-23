@@ -138,24 +138,13 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (!page.text?.trim()) {\n    throw new Error('No scraped text for ' + page.pageUrl);\n  }\n  const body = {\n    text: page.text,\n    directions: page.directions,\n    localLlmModel: page.localLlmModel,\n  };\n  if (page.summarizePrompt) body.summarizePrompt = page.summarizePrompt;\n  if (page.fieldPrompt) body.fieldPrompt = page.fieldPrompt;\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/summarize',\n    body,\n    json: true,\n    timeout: 1800000,\n  });\n  return {\n    json: {\n      ...page,\n      summary: response.summary,\n      summaryLength: response.summaryLength,\n    },\n  };\n}));"
+        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (!page.text?.trim()) {\n    throw new Error('No scraped text for ' + page.pageUrl);\n  }\n  if (!page.scrape_id) {\n    throw new Error('Missing scrape_id for ' + page.pageUrl + ' — rebuild simple-scraper and re-import the workflow');\n  }\n  const body = {\n    text: page.text,\n    scrape_id: page.scrape_id,\n    directions: page.directions,\n    localLlmModel: page.localLlmModel,\n  };\n  if (page.summarizePrompt) body.summarizePrompt = page.summarizePrompt;\n  if (page.fieldPrompt) body.fieldPrompt = page.fieldPrompt;\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/summarize',\n    body,\n    json: true,\n    timeout: 1800000,\n  });\n  return {\n    json: {\n      ...page,\n      summary: response.summary,\n      summaryLength: response.summaryLength,\n    },\n  };\n}));"
       },
       "id": "a1b2c3d4-0010-4000-8000-000000000010",
       "name": "Summarize Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1870, 300]
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (!page.scrape_id) {\n    throw new Error('Missing scrape_id for ' + page.pageUrl + ' — rebuild simple-scraper and re-import the workflow');\n  }\n  if (!page.executionId) {\n    throw new Error('Missing executionId for ' + page.pageUrl);\n  }\n  const saved = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/save-scrape',\n    body: {\n      scrape_id: page.scrape_id,\n      execution_id: page.executionId,\n      page_url: page.pageUrl,\n      scraped_text: page.text ?? '',\n      summarized_text: page.summary ?? '',\n    },\n    json: true,\n  });\n  return {\n    json: {\n      ...page,\n      scrape_id: saved.scrape_id ?? page.scrape_id,\n      scrape_date: saved.scrape_date ?? page.scrape_date,\n    },\n  };\n}));"
-      },
-      "id": "a1b2c3d4-0024-4000-8000-000000000024",
-      "name": "Save Scrapes",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1980, 300]
     },
     {
       "parameters": {
@@ -324,9 +313,6 @@
       "main": [[{ "node": "Summarize Pages", "type": "main", "index": 0 }]]
     },
     "Summarize Pages": {
-      "main": [[{ "node": "Save Scrapes", "type": "main", "index": 0 }]]
-    },
-    "Save Scrapes": {
       "main": [[{ "node": "Split Fields", "type": "main", "index": 0 }]]
     },
     "Split Fields": {

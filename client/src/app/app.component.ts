@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ConfirmModalComponent } from './components/confirm-modal/confirm-modal.component';
 import { DatabaseTabComponent } from './components/database-tab/database-tab.component';
 import { ProgressPanelComponent } from './components/progress-panel/progress-panel.component';
 import { ScraperSidebarComponent } from './components/scraper-sidebar/scraper-sidebar.component';
@@ -25,6 +26,7 @@ import { Subscription } from 'rxjs';
   imports: [
     FormsModule,
     SettingsModalComponent,
+    ConfirmModalComponent,
     ProgressPanelComponent,
     WorkflowTabComponent,
     DatabaseTabComponent,
@@ -55,6 +57,8 @@ export class AppComponent implements OnInit, OnDestroy {
   loadingExecutions = false;
   savingProject = false;
   saveMessage: string | null = null;
+  showDeleteExecutionConfirm = false;
+  deletingExecution = false;
 
   isRunning = false;
   showSettings = false;
@@ -351,6 +355,43 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onDismissProgress(): void {
     this.scrapeService.dismissProgress().subscribe();
+  }
+
+  onDeleteExecutionClick(): void {
+    if (!this.selectedExecution || this.isRunning) return;
+    this.showDeleteExecutionConfirm = true;
+  }
+
+  onCancelDeleteExecution(): void {
+    this.showDeleteExecutionConfirm = false;
+  }
+
+  onConfirmDeleteExecution(): void {
+    const executionId = this.selectedExecution?.execution_id;
+    if (!executionId || this.deletingExecution) return;
+
+    this.deletingExecution = true;
+    this.executionService.get(executionId).subscribe({
+      next: (execution) => {
+        this.executionService.delete(execution.execution_id).subscribe({
+          next: () => {
+            this.deletingExecution = false;
+            this.showDeleteExecutionConfirm = false;
+            this.selectedExecutionId = null;
+            this.selectedExecution = null;
+            this.loadExecutions();
+          },
+          error: (err) => {
+            console.error('Failed to delete execution', err);
+            this.deletingExecution = false;
+          },
+        });
+      },
+      error: (err) => {
+        console.error('Failed to load execution for delete', err);
+        this.deletingExecution = false;
+      },
+    });
   }
 
   trackByIndex(index: number): number {

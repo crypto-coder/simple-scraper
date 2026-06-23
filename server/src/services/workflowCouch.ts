@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { ensureCouchDatabases } from './couchAuth';
-import { getDocument, putDocument } from './couchClient';
+import { deleteDocument, getDocument, putDocument } from './couchClient';
 import type { CouchDoc, Execution, Project, Result, Scrape } from '../types/records';
 
 export async function createWorkflowExecution(project: Project): Promise<Execution> {
@@ -14,6 +14,7 @@ export async function createWorkflowExecution(project: Project): Promise<Executi
     execution_time,
     project,
     results: [],
+    scrapes: [],
   };
   await putDocument('executions', execution_id, execution as CouchDoc<Execution>);
   return execution;
@@ -37,40 +38,48 @@ export async function saveScrapeRecord(input: {
     summarized_text: input.summarized_text,
   };
   await putDocument('scrapes', scrape_id, scrape as CouchDoc<Scrape>);
+  await appendScrapeToExecution(input.execution_id, scrape_id);
   return scrape;
 }
 
-export async function upsertScrapeRecord(input: {
-  scrape_id?: string;
-  execution_id: string;
-  page_url: string;
-  scraped_text: string;
-  summarized_text: string;
-}): Promise<Scrape> {
-  await ensureCouchDatabases();
-
-  if (input.scrape_id) {
-    const existing = await getDocument<CouchDoc<Scrape>>('scrapes', input.scrape_id);
-    if (!existing) {
-      throw new Error(`Scrape '${input.scrape_id}' not found`);
-    }
-
-    const scrape: Scrape = {
-      scrape_id: input.scrape_id,
-      execution_id: input.execution_id,
-      page_url: input.page_url,
-      scrape_date: existing.scrape_date,
-      scraped_text: input.scraped_text,
-      summarized_text: input.summarized_text,
-    };
-    await putDocument('scrapes', input.scrape_id, {
-      ...existing,
-      ...scrape,
-    });
-    return scrape;
+async function appendScrapeToExecution(executionId: string, scrapeId: string): Promise<void> {
+  const existing = await getDocument<CouchDoc<Execution>>('executions', executionId);
+  if (!existing) {
+    throw new Error(`Execution '${executionId}' not found`);
   }
 
-  return saveScrapeRecord(input);
+  const scrapes = existing.scrapes ?? [];
+  if (scrapes.includes(scrapeId)) {
+    return;
+  }
+
+  await putDocument('executions', executionId, {
+    ...existing,
+    scrapes: [...scrapes, scrapeId],
+  });
+}
+
+export async function updateScrapeSummarizedText(
+  scrapeId: string,
+  summarizedText: string
+): Promise<Scrape> {
+  await ensureCouchDatabases();
+
+  const existing = await getDocument<CouchDoc<Scrape>>('scrapes', scrapeId);
+  if (!existing) {
+    throw new Error(`Scrape '${scrapeId}' not found`);
+  }
+
+  const scrape: Scrape = {
+    scrape_id: scrapeId,
+    execution_id: existing.execution_id,
+    page_url: existing.page_url,
+    scrape_date: existing.scrape_date,
+    scraped_text: existing.scraped_text,
+    summarized_text: summarizedText,
+  };
+  await putDocument('scrapes', scrapeId, { ...existing, ...scrape });
+  return scrape;
 }
 
 export async function appendExecutionResults(
@@ -91,4 +100,22 @@ export async function appendExecutionResults(
   });
 
   return { execution_id: executionId, resultsCount: mergedResults.length };
+}
+
+export async function deleteExecutionWithScrapes(executionId: string): Promise<void> {
+  await ensureCouchDatabases();
+
+  const existing = await getDocument<CouchDoc<Execution>>('executions', executionId);
+  if (!existing?._rev) {
+    throw new Error(`Execution '${executionId}' not found`);
+  }
+
+  for (const scrapeId of existing.scrapes ?? []) {
+    const scrape = await getDocument<CouchDoc<Scrape>>('scrapes', scrapeId);
+    if (scrape?._rev) {
+      await deleteDocument('scrapes', scrapeId, scrape._rev);
+    }
+  }
+
+  await deleteDocument('executions', executionId, existing._rev);
 }

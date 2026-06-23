@@ -126,20 +126,22 @@
     },
     {
       "parameters": {
-        "jsCode": "const page = $json;\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${page.scraperBaseUrl}/api/workflow/scrape-page`,\n  body: { url: page.pageUrl },\n  json: true,\n});\nreturn [{\n  json: {\n    ...page,\n    text: response.text,\n    textLength: response.textLength,\n    scrapedUrl: response.url,\n  },\n}];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/scrape-page',\n    body: { url: page.pageUrl },\n    json: true,\n  });\n  return {\n    json: {\n      ...page,\n      text: response.text,\n      textLength: response.textLength,\n      scrapedUrl: response.url,\n    },\n  };\n}));"
       },
       "id": "a1b2c3d4-0008-4000-8000-000000000008",
-      "name": "Scrape Page",
+      "name": "Scrape Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1650, 300]
     },
     {
       "parameters": {
-        "jsCode": "const page = $('Scrape Page').item.json;\nif (!page.text?.trim()) {\n  throw new Error(`No scraped text for ${page.pageUrl}`);\n}\nconst body = {\n  text: page.text,\n  directions: page.directions,\n  localLlmModel: page.localLlmModel,\n};\nif (page.summarizePrompt) body.summarizePrompt = page.summarizePrompt;\nif (page.fieldPrompt) body.fieldPrompt = page.fieldPrompt;\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${page.scraperBaseUrl}/api/workflow/summarize`,\n  body,\n  json: true,\n  timeout: 1800000,\n});\nreturn [{\n  json: {\n    ...page,\n    summary: response.summary,\n    summaryLength: response.summaryLength,\n  },\n}];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (!page.text?.trim()) {\n    throw new Error('No scraped text for ' + page.pageUrl);\n  }\n  const body = {\n    text: page.text,\n    directions: page.directions,\n    localLlmModel: page.localLlmModel,\n  };\n  if (page.summarizePrompt) body.summarizePrompt = page.summarizePrompt;\n  if (page.fieldPrompt) body.fieldPrompt = page.fieldPrompt;\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: page.scraperBaseUrl + '/api/workflow/summarize',\n    body,\n    json: true,\n    timeout: 1800000,\n  });\n  return {\n    json: {\n      ...page,\n      summary: response.summary,\n      summaryLength: response.summaryLength,\n    },\n  };\n}));"
       },
       "id": "a1b2c3d4-0010-4000-8000-000000000010",
-      "name": "Summarize Page",
+      "name": "Summarize Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1870, 300]
@@ -305,12 +307,12 @@
       "main": [[{ "node": "Save JSON Output", "type": "main", "index": 0 }]]
     },
     "Split Pages": {
-      "main": [[{ "node": "Scrape Page", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Scrape Pages", "type": "main", "index": 0 }]]
     },
-    "Scrape Page": {
-      "main": [[{ "node": "Summarize Page", "type": "main", "index": 0 }]]
+    "Scrape Pages": {
+      "main": [[{ "node": "Summarize Pages", "type": "main", "index": 0 }]]
     },
-    "Summarize Page": {
+    "Summarize Pages": {
       "main": [[{ "node": "Split Fields", "type": "main", "index": 0 }]]
     },
     "Split Fields": {

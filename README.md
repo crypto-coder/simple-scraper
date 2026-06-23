@@ -36,7 +36,7 @@ docker compose run --rm runtime-init
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use the **Scraper** and **Workflow** tabs to switch between the scrape form and the n8n workspace.
+Open [http://localhost:3000](http://localhost:3000). Use the **Scraper**, **Workflow**, and **Database** tabs to switch between the scrape form, the n8n workspace, and CouchDB (Fauxton).
 
 The **Workflow** tab signs in automatically using the n8n owner account from `config/n8n.env`. No manual setup or login is required after the first stack start.
 
@@ -53,6 +53,14 @@ If the browser console shows `A listener indicated an asynchronous response...`,
 When opening the app from another machine by IP (not `localhost`), set `PUBLIC_BASE_URL` in `.env` to the URL you use in the browser, for example `http://10.32.1.124:3000`. This keeps n8n editor and webhook links consistent. Console warnings about Cross-Origin-Opener-Policy or WebAuthn on plain HTTP are expected in that setup and do not block workflow execution.
 
 If running a workflow in the n8n editor shows **Lost connection to the server** or repeating **Origin header does NOT match** errors in the n8n logs, rebuild after pulling the latest code — the proxy must forward the browser `Host` to n8n on WebSocket upgrades (not the internal `n8n:5678` hostname).
+
+If the embedded n8n editor returns **408 Request Timeout** when saving, rebuild `simple-scraper` after pulling the latest code (the proxy must stream responses, not buffer them). On a slow or unreliable USB disk, prefer editing `n8n/workflows/website-scraper.workflow.json` in the repo and re-importing:
+
+```bash
+rm -f runtime/n8n/.website-scraper-imported-v8
+docker compose run --rm n8n-import
+docker compose restart n8n
+```
 
 If you previously started n8n and saw the owner setup wizard, reset n8n data once so the env-provisioned owner can be applied:
 
@@ -71,7 +79,44 @@ All n8n data is stored on the host via Docker bind mounts (survives `docker comp
 | `./runtime/n8n` | `/home/node/.n8n` | Workflows, credentials, SQLite database, encryption key |
 | `./runtime/n8n-files` | `/files` | Files read/written by workflow nodes |
 
-Verify persistence after creating a workflow:
+### CouchDB persistence
+
+CouchDB (with Fauxton UI) stores data on the host at `./runtime/couchdb`. The **Database** tab signs in automatically and opens Fauxton in an iframe.
+
+Default credentials are in `config/couchdb.env`:
+
+- User: `admin`
+- Password: `password`
+
+On first stack start, `couchdb-init` creates two databases:
+
+| Database | Document `_id` | Purpose |
+|----------|----------------|---------|
+| `projects` | `project_id` | Project records |
+| `executions` | `execution_id` | Execution/run records |
+
+Example document:
+
+```json
+{
+  "_id": "my-project-001",
+  "name": "Example site scrape",
+  "created_at": "2026-01-15T12:00:00Z"
+}
+```
+
+Use `_id` as the primary key (`project_id` or `execution_id` value).
+
+Verify persistence:
+
+```bash
+docker compose restart couchdb
+curl -u admin:password http://localhost:3000/database/_all_dbs
+```
+
+(Through the app proxy; CouchDB is not exposed on a separate host port by default.)
+
+Verify n8n persistence after creating a workflow:
 
 ```bash
 docker compose restart n8n
@@ -111,6 +156,8 @@ ls -la runtime/models/blobs
 | `OUTPUT_FOLDER` | `./output` | Where scraped JSON results are written |
 
 n8n owner credentials (`N8N_OWNER_*`, `N8N_INSTANCE_OWNER_*`) are in **`config/n8n.env`**, not `.env`.
+
+CouchDB credentials (`COUCHDB_USER`, `COUCHDB_PASSWORD`) are in **`config/couchdb.env`**.
 
 These can also be changed from the **Settings** modal in the UI (persisted to `/app/data/settings.json` inside the container).
 
@@ -156,7 +203,7 @@ On first Docker start, the `n8n-import` service automatically imports and activa
 **Re-import after workflow changes** (one-time):
 
 ```bash
-rm -f runtime/n8n/.website-scraper-imported-v6
+rm -f runtime/n8n/.website-scraper-imported-v8
 docker compose run --rm n8n-import
 docker compose restart n8n
 ```

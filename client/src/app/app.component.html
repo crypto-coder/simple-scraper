@@ -1,4 +1,4 @@
-<div class="app" [class.app--workflow]="activeTab === 'workflow'">
+<div class="app" [class.app--embed]="activeTab === 'workflow' || activeTab === 'database'">
   <header class="header">
     <div class="header-left">
       <h1>Simple Scraper</h1>
@@ -18,6 +18,14 @@
           (click)="setActiveTab('workflow')"
         >
           Workflow
+        </button>
+        <button
+          type="button"
+          class="tab"
+          [class.active]="activeTab === 'database'"
+          (click)="setActiveTab('database')"
+        >
+          Database
         </button>
       </nav>
     </div>
@@ -122,6 +130,12 @@
       class="tab-panel"
       [class.tab-panel--hidden]="activeTab !== 'workflow'"
       [active]="activeTab === 'workflow'"
+    />
+
+    <app-database-tab
+      class="tab-panel"
+      [class.tab-panel--hidden]="activeTab !== 'database'"
+      [active]="activeTab === 'database'"
     />
   </main>
 

@@ -36,6 +36,7 @@ services:
       - "3000:3000"
     env_file:
       - config/n8n.env
+      - config/couchdb.env
     environment:
       CLOUD_LLM_URL: ${CLOUD_LLM_URL:-}
       CLOUD_LLM_API_KEY: ${CLOUD_LLM_API_KEY:-}
@@ -46,6 +47,7 @@ services:
       N8N_INTERNAL_URL: http://n8n:5678
       N8N_WEBHOOK_SCRAPE_URL: http://n8n:5678/webhook/scrape
       SCRAPER_BASE_URL: http://simple-scraper:3000
+      COUCHDB_INTERNAL_URL: http://couchdb:5984
     volumes:
       - ./runtime/models:/app/models
       - ./runtime/output:/app/output
@@ -57,7 +59,47 @@ services:
         condition: service_completed_successfully
       n8n:
         condition: service_healthy
+      couchdb-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+
+  couchdb:
+    image: couchdb:3.4
+    env_file:
+      - config/couchdb.env
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-password}
+    volumes:
+      - ./runtime/couchdb:/opt/couchdb/data
+    expose:
+      - "5984"
+    depends_on:
+      runtime-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5984/_up || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  couchdb-init:
+    image: curlimages/curl:8.12.1
+    user: "0:0"
+    env_file:
+      - config/couchdb.env
+    environment:
+      COUCHDB_HOST: couchdb
+      COUCHDB_PORT: "5984"
+    volumes:
+      - ./couchdb/init-databases.sh:/init-databases.sh:ro
+    entrypoint: ["/bin/sh", "/init-databases.sh"]
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    restart: "no"
 
   n8n:
     build:

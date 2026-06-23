@@ -1,0 +1,13 @@
+<div class="database-shell" [class.database-shell--ready]="!!databaseUrl">
+  @if (loading) {
+    <p class="database-status">Signing in to CouchDB…</p>
+  } @else if (error) {
+    <p class="database-status database-status--error">{{ error }}</p>
+  } @else if (databaseUrl) {
+    <iframe
+      class="database-frame"
+      [src]="databaseUrl"
+      title="CouchDB Fauxton"
+    ></iframe>
+  }
+</div>

@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DatabaseTabComponent } from './components/database-tab/database-tab.component';
 import { ProgressPanelComponent } from './components/progress-panel/progress-panel.component';
 import { SettingsModalComponent } from './components/settings-modal/settings-modal.component';
 import { WorkflowTabComponent } from './components/workflow-tab/workflow-tab.component';
@@ -11,12 +12,12 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, SettingsModalComponent, ProgressPanelComponent, WorkflowTabComponent],
+  imports: [FormsModule, SettingsModalComponent, ProgressPanelComponent, WorkflowTabComponent, DatabaseTabComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit, OnDestroy {
-  activeTab: 'scraper' | 'workflow' = 'scraper';
+  activeTab: 'scraper' | 'workflow' | 'database' = 'scraper';
   urlsText = '';
   fieldsText = '';
   prompt = '';
@@ -108,12 +109,12 @@ export class AppComponent implements OnInit, OnDestroy {
     this.showSettings = true;
   }
 
-  setActiveTab(tab: 'scraper' | 'workflow'): void {
+  setActiveTab(tab: 'scraper' | 'workflow' | 'database'): void {
     this.activeTab = tab;
-    if (tab === 'workflow') {
-      this.scrapeService.stopStream();
-    } else {
+    if (tab === 'scraper') {
       this.scrapeService.startStream();
+    } else {
+      this.scrapeService.stopStream();
     }
   }
 

@@ -2,15 +2,9 @@ import type { Express } from 'express';
 import type { IncomingMessage } from 'http';
 import type { ClientRequest } from 'http';
 import type { RequestHandler } from 'http-proxy-middleware';
-import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const N8N_PATH = '/workflow';
-
-function stripN8nTelemetry(html: string): string {
-  return html
-    .replace(/<script[^>]*posthog\.init\.js[^>]*>\s*<\/script>\s*/gi, '')
-    .replace(/<meta name="n8n:config:sentry"[^>]*>\s*/gi, '');
-}
 
 function rewriteN8nPath(path: string): string {
   const rewritten = path.replace(/^\/workflow\/?/, '/');
@@ -36,10 +30,11 @@ export function mountN8nProxy(app: Express): RequestHandler {
     target,
     changeOrigin: false,
     ws: true,
-    // Match at app root so WebSocket upgrades keep the full /workflow/... path.
+    // Stream responses through — do not buffer (required for /rest/push and slow saves).
     pathFilter: N8N_PATH,
     pathRewrite: rewriteN8nPath,
-    selfHandleResponse: true,
+    timeout: 0,
+    proxyTimeout: 0,
     on: {
       proxyReq: (proxyReq, req) => {
         applyN8nProxyHeaders(proxyReq, req);
@@ -47,13 +42,6 @@ export function mountN8nProxy(app: Express): RequestHandler {
       proxyReqWs: (proxyReq, req) => {
         applyN8nProxyHeaders(proxyReq, req);
       },
-      proxyRes: responseInterceptor(async (responseBuffer, proxyRes) => {
-        const contentType = proxyRes.headers['content-type'] ?? '';
-        if (contentType.includes('text/html')) {
-          return stripN8nTelemetry(responseBuffer.toString('utf8'));
-        }
-        return responseBuffer;
-      }),
     },
   });
 

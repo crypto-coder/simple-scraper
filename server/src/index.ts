@@ -3,7 +3,9 @@ import express from 'express';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+import { mountCouchProxy } from './couchProxy';
 import { mountN8nProxy } from './n8nProxy';
+import { databaseRouter } from './routes/database';
 import { scrapeRouter } from './routes/scrape';
 import { settingsRouter } from './routes/settings';
 import { workflowRouter } from './routes/workflow';
@@ -16,12 +18,14 @@ app.use(express.json());
 
 app.use('/api/scrape', scrapeRouter);
 app.use('/api/workflow', workflowRouter);
+app.use('/api/database', databaseRouter);
 app.use('/api/settings', settingsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+mountCouchProxy(app);
 const n8nProxy = mountN8nProxy(app);
 
 const clientDist = path.join(__dirname, '..', 'public');
@@ -33,6 +37,9 @@ if (fs.existsSync(clientDist)) {
 }
 
 const server = http.createServer(app);
+server.requestTimeout = 0;
+server.headersTimeout = 0;
+server.timeout = 0;
 server.on('upgrade', n8nProxy.upgrade);
 
 server.listen(PORT, '0.0.0.0', () => {

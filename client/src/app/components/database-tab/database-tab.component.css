@@ -1,0 +1,42 @@
+:host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.database-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+}
+
+.database-shell--ready {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.database-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.database-status--error {
+  color: var(--error);
+  max-width: 36rem;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.database-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+}

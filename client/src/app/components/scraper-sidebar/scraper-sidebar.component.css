@@ -1,0 +1,150 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 280px;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.accordion-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion-section--open {
+  flex: 1;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.accordion-toggle--solo {
+  width: 100%;
+}
+
+.accordion-toggle:hover {
+  background: var(--border);
+}
+
+.accordion-action {
+  padding: 0 0.85rem;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.accordion-action:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.accordion-chevron {
+  display: inline-block;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.accordion-chevron--open {
+  transform: rotate(90deg);
+}
+
+.accordion-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+}
+
+.accordion-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+}
+
+.sidebar-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.sidebar-item:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.sidebar-item--active {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+.sidebar-item-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.sidebar-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sidebar-empty {
+  margin: 0;
+  padding: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

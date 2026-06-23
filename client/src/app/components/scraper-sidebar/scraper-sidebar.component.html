@@ -1,0 +1,70 @@
+<aside class="sidebar" aria-label="Projects and executions">
+  <section class="accordion-section" [class.accordion-section--open]="projectsOpen">
+    <div class="accordion-header">
+      <button type="button" class="accordion-toggle" (click)="toggleProjects()" [attr.aria-expanded]="projectsOpen">
+        <span class="accordion-chevron" [class.accordion-chevron--open]="projectsOpen">›</span>
+        Projects
+        <span class="accordion-count">{{ projects.length }}</span>
+      </button>
+      <button type="button" class="accordion-action" (click)="newProject.emit()" title="New project">+</button>
+    </div>
+    @if (projectsOpen) {
+      <div class="accordion-body">
+        @if (loadingProjects) {
+          <p class="sidebar-empty">Loading…</p>
+        } @else if (!projects.length) {
+          <p class="sidebar-empty">No projects yet. Save one from the form.</p>
+        } @else {
+          <ul class="sidebar-list">
+            @for (project of projects; track project.project_id) {
+              <li>
+                <button
+                  type="button"
+                  class="sidebar-item"
+                  [class.sidebar-item--active]="project.project_id === selectedProjectId"
+                  (click)="onProjectClick(project)"
+                >
+                  <span class="sidebar-item-title">{{ project.project_name }}</span>
+                  <span class="sidebar-item-meta">{{ project.website_urls.length }} URL{{ project.website_urls.length === 1 ? '' : 's' }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="accordion-section" [class.accordion-section--open]="executionsOpen">
+    <button type="button" class="accordion-toggle accordion-toggle--solo" (click)="toggleExecutions()" [attr.aria-expanded]="executionsOpen">
+      <span class="accordion-chevron" [class.accordion-chevron--open]="executionsOpen">›</span>
+      Executions
+      <span class="accordion-count">{{ executions.length }}</span>
+    </button>
+    @if (executionsOpen) {
+      <div class="accordion-body">
+        @if (loadingExecutions) {
+          <p class="sidebar-empty">Loading…</p>
+        } @else if (!executions.length) {
+          <p class="sidebar-empty">No executions yet.</p>
+        } @else {
+          <ul class="sidebar-list">
+            @for (execution of executions; track execution.execution_id) {
+              <li>
+                <button
+                  type="button"
+                  class="sidebar-item"
+                  [class.sidebar-item--active]="execution.execution_id === selectedExecutionId"
+                  (click)="onExecutionClick(execution)"
+                >
+                  <span class="sidebar-item-title">{{ execution.execution_label }}</span>
+                  <span class="sidebar-item-meta">{{ formatTime(execution.execution_time) }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </section>
+</aside>

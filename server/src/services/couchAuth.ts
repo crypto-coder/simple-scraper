@@ -1,7 +1,7 @@
 const COUCHDB_INTERNAL_URL = process.env.COUCHDB_INTERNAL_URL ?? 'http://127.0.0.1:5984';
 
 const SYSTEM_DATABASES = ['_users', '_replicator'] as const;
-const APP_DATABASES = ['projects', 'executions'] as const;
+const APP_DATABASES = ['projects', 'executions', 'scrapes'] as const;
 
 export function getCouchCredentials(): { username: string; password: string } {
   return {

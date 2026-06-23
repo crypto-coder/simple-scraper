@@ -35,7 +35,7 @@ ensure_db() {
 }
 
 # System DBs first — auth cache listener requires _users at startup.
-for db in _users _replicator projects executions; do
+for db in _users _replicator projects executions scrapes; do
   ensure_db "$db"
 done
 

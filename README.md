@@ -92,8 +92,9 @@ On first stack start, `couchdb-init` ensures CouchDB system databases (`_users`,
 
 | Database | Document `_id` | Purpose |
 |----------|----------------|---------|
-| `projects` | `project_id` | Project records |
-| `executions` | `execution_id` | Execution/run records |
+| `projects` | `project_id` (UUID) | Saved scrape project configs |
+| `executions` | `execution_id` (UUID) | Run history with extracted results |
+| `scrapes` | `scrape_id` (UUID) | Per-page scrape and summary text |
 
 Example document:
 

@@ -8,6 +8,7 @@ const DATABASE_PATH = '/database';
 function isCouchRootPath(pathname: string): boolean {
   if (pathname === '/projects' || pathname.startsWith('/projects/')) return true;
   if (pathname === '/executions' || pathname.startsWith('/executions/')) return true;
+  if (pathname === '/scrapes' || pathname.startsWith('/scrapes/')) return true;
   // CouchDB system endpoints (_session, _utils, _uuids, _all_dbs, …)
   if (/^\/_/.test(pathname)) return true;
   return false;

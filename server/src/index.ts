@@ -6,7 +6,10 @@ import path from 'path';
 import { mountCouchProxy } from './couchProxy';
 import { mountN8nProxy } from './n8nProxy';
 import { databaseRouter } from './routes/database';
+import { executionsRouter } from './routes/executions';
+import { projectsRouter } from './routes/projects';
 import { scrapeRouter } from './routes/scrape';
+import { scrapesRouter } from './routes/scrapes';
 import { settingsRouter } from './routes/settings';
 import { workflowRouter } from './routes/workflow';
 
@@ -19,6 +22,9 @@ app.use(express.json());
 app.use('/api/scrape', scrapeRouter);
 app.use('/api/workflow', workflowRouter);
 app.use('/api/database', databaseRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api/executions', executionsRouter);
+app.use('/api/scrapes', scrapesRouter);
 app.use('/api/settings', settingsRouter);
 
 app.get('/api/health', (_req, res) => {

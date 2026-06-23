@@ -1,7 +1,8 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import type { LogEntry, ScrapeProgress, ScrapeRequest } from '../types';
-import { triggerScrapeWorkflow } from './n8nTrigger';
+import { projectFromScrapeRequest, triggerScrapeWorkflow } from './n8nTrigger';
+import { createWorkflowExecution } from './workflowCouch';
 
 export type ProgressEventType = 'log' | 'url_start' | 'url_done' | 'complete' | 'error';
 
@@ -47,20 +48,24 @@ class JobManager extends EventEmitter {
     }
 
     const jobId = uuidv4();
+    const project = projectFromScrapeRequest(request);
+    const execution = await createWorkflowExecution(project);
+
     this.progress = {
       jobId,
       status: 'running',
-      totalUrls: request.urls.length,
+      totalUrls: project.website_urls.length,
       processedUrls: 0,
       currentUrl: null,
       logs: [],
     };
 
-    this.log('info', `Starting scrape job with ${request.urls.length} URL(s) via n8n`);
+    this.log('info', `Starting scrape job with ${project.website_urls.length} URL(s) via n8n`);
+    this.log('info', `Execution ${execution.execution_id} created in CouchDB`);
     this.emit('progress', this.getProgress());
 
     try {
-      await triggerScrapeWorkflow(jobId, request);
+      await triggerScrapeWorkflow(jobId, request, execution.execution_id, project);
       this.log('info', 'n8n workflow triggered');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

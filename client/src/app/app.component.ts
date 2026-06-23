@@ -336,16 +336,14 @@ export class AppComponent implements OnInit, OnDestroy {
     const input = this.buildProjectInput();
     if (!input) return;
 
+    const project: Project = {
+      project_id: (this.selectedProjectId ?? this.projectId) || crypto.randomUUID(),
+      ...input,
+    };
+
     this.showProgress = true;
     this.scrapeService
-      .startScrape({
-        urls: input.website_urls,
-        fields: input.output_fields.map((f) => f.field_name),
-        prompt: input.main_prompt,
-        summarizePrompt: input.summarize_prompt,
-        fieldPrompt: input.field_extract_prompt,
-        localLlmModel: input.local_llm,
-      })
+      .startScrape({ project })
       .subscribe({
         error: (err) => console.error('Failed to start scrape', err),
       });

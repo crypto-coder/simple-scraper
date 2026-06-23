@@ -15,7 +15,12 @@ export interface ScrapeProgress {
   logs: LogEntry[];
 }
 
+import type { Project } from './types/records';
+
+export type { Project, OutputField, Execution, Result, Scrape } from './types/records';
+
 export interface ScrapeRequest {
+  project?: Project;
   urls: string[];
   fields: string[];
   prompt: string;

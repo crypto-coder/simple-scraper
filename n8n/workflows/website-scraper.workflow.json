@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $json.body ?? $json;\nconst urls = raw.urls ?? [];\n\nreturn urls.map((startUrl) => ({\n  json: {\n    jobId: raw.jobId,\n    startUrl,\n    fields: raw.fields ?? [],\n    directions: raw.prompt ?? '',\n    summarizePrompt: raw.summarizePrompt ?? '',\n    fieldPrompt: raw.fieldPrompt ?? '',\n    localLlmModel: raw.localLlmModel ?? 'gemma4:e4b',\n    scraperBaseUrl: raw.scraperBaseUrl ?? 'http://simple-scraper:3000',\n    totalUrls: urls.length,\n  },\n}));"
+        "jsCode": "const raw = $json.body ?? $json;\nconst project = raw.project;\nconst executionId = raw.executionId;\nconst outputFields = project?.output_fields ?? (raw.outputFields ?? (raw.fields ?? []).map((field_name) => ({ field_name, extract_hint: '' })));\nconst urls = project?.website_urls ?? raw.urls ?? [];\n\nreturn urls.map((startUrl) => ({\n  json: {\n    jobId: raw.jobId,\n    executionId,\n    project,\n    startUrl,\n    outputFields,\n    directions: project?.main_prompt ?? raw.prompt ?? '',\n    summarizePrompt: project?.summarize_prompt ?? raw.summarizePrompt ?? '',\n    fieldPrompt: project?.field_extract_prompt ?? raw.fieldPrompt ?? '',\n    localLlmModel: project?.local_llm ?? raw.localLlmModel ?? 'gemma4:e4b',\n    scraperBaseUrl: raw.scraperBaseUrl ?? 'http://simple-scraper:3000',\n    totalUrls: urls.length,\n  },\n}));"
       },
       "id": "a1b2c3d4-0002-4000-8000-000000000002",
       "name": "Split URLs",
@@ -106,7 +106,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const config = $('After Spider').first().json;\nconst requestedFields = config.fields ?? [];\nreturn [{\n  json: {\n    jobId: config.jobId,\n    startUrl: config.startUrl,\n    requestedFields,\n    findings: [],\n    pageResults: [],\n    directions: config.directions,\n    summarizePrompt: config.summarizePrompt,\n    fieldPrompt: config.fieldPrompt,\n    localLlmModel: config.localLlmModel,\n    scraperBaseUrl: config.scraperBaseUrl,\n    emptySite: true,\n  },\n}];"
+        "jsCode": "const config = $('After Spider').first().json;\nreturn [{\n  json: {\n    jobId: config.jobId,\n    executionId: config.executionId,\n    startUrl: config.startUrl,\n    results: [],\n    scraperBaseUrl: config.scraperBaseUrl,\n    emptySite: true,\n  },\n}];"
       },
       "id": "a1b2c3d4-0023-4000-8000-000000000023",
       "name": "Prepare Empty Save",
@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const config = $('After Spider').first().json;\nconst pages = config.pages ?? [];\n\nreturn pages.map((pageUrl) => ({\n  json: {\n    jobId: config.jobId,\n    startUrl: config.startUrl,\n    pageUrl,\n    fields: config.fields,\n    directions: config.directions,\n    summarizePrompt: config.summarizePrompt,\n    fieldPrompt: config.fieldPrompt,\n    localLlmModel: config.localLlmModel,\n    scraperBaseUrl: config.scraperBaseUrl,\n  },\n}));"
+        "jsCode": "const config = $('After Spider').first().json;\nconst pages = config.pages ?? [];\n\nreturn pages.map((pageUrl) => ({\n  json: {\n    jobId: config.jobId,\n    executionId: config.executionId,\n    project: config.project,\n    startUrl: config.startUrl,\n    pageUrl,\n    outputFields: config.outputFields,\n    directions: config.directions,\n    summarizePrompt: config.summarizePrompt,\n    fieldPrompt: config.fieldPrompt,\n    localLlmModel: config.localLlmModel,\n    scraperBaseUrl: config.scraperBaseUrl,\n  },\n}));"
       },
       "id": "a1b2c3d4-0007-4000-8000-000000000007",
       "name": "Split Pages",
@@ -148,7 +148,18 @@
     },
     {
       "parameters": {
-        "jsCode": "const page = $json;\nconst fields = page.fields ?? [];\n\nreturn fields.map((field) => ({\n  json: {\n    jobId: page.jobId,\n    startUrl: page.startUrl,\n    pageUrl: page.pageUrl,\n    summary: page.summary,\n    field,\n    directions: page.directions,\n    summarizePrompt: page.summarizePrompt,\n    fieldPrompt: page.fieldPrompt,\n    localLlmModel: page.localLlmModel,\n    scraperBaseUrl: page.scraperBaseUrl,\n  },\n}));"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const pages = $input.all().map((item) => item.json);\n\nreturn Promise.all(pages.map(async (page) => {\n  if (page.text?.trim() && page.summary != null) {\n    await this.helpers.httpRequest({\n      method: 'POST',\n      url: page.scraperBaseUrl + '/api/workflow/save-scrape',\n      body: {\n        execution_id: page.executionId,\n        page_url: page.pageUrl,\n        scraped_text: page.text,\n        summarized_text: page.summary,\n      },\n      json: true,\n    });\n  }\n  return { json: page };\n}));"
+      },
+      "id": "a1b2c3d4-0024-4000-8000-000000000024",
+      "name": "Save Scrapes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const page = $json;\nconst outputFields = page.outputFields ?? [];\n\nreturn outputFields.map((fieldDef) => ({\n  json: {\n    ...page,\n    field: fieldDef.field_name,\n    extractHint: fieldDef.extract_hint ?? '',\n  },\n}));"
       },
       "id": "a1b2c3d4-0012-4000-8000-000000000012",
       "name": "Split Fields",
@@ -177,7 +188,7 @@
         "url": "={{ $('Split Fields').item.json.scraperBaseUrl }}/api/workflow/extract-field",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ field: $('Split Fields').item.json.field, context: $('Split Fields').item.json.summary, directions: $('Split Fields').item.json.directions, fieldPrompt: $('Split Fields').item.json.fieldPrompt || undefined, localLlmModel: $('Split Fields').item.json.localLlmModel }) }}",
+        "jsonBody": "={{ JSON.stringify({ field: $('Split Fields').item.json.field, context: $('Split Fields').item.json.summary, directions: $('Split Fields').item.json.directions, fieldPrompt: $('Split Fields').item.json.fieldPrompt || undefined, localLlmModel: $('Split Fields').item.json.localLlmModel, extractHint: $('Split Fields').item.json.extractHint || undefined }) }}",
         "options": { "timeout": 1800000 }
       },
       "id": "a1b2c3d4-0014-4000-8000-000000000014",
@@ -188,7 +199,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Split Fields').item.json;\nconst extracted = $json.body ?? $json;\nconst found = extracted.value != null && String(extracted.value).trim() !== '';\nreturn [{\n  json: {\n    jobId: ctx.jobId,\n    startUrl: ctx.startUrl,\n    pageUrl: ctx.pageUrl,\n    summary: ctx.summary,\n    directions: ctx.directions,\n    summarizePrompt: ctx.summarizePrompt,\n    fieldPrompt: ctx.fieldPrompt,\n    localLlmModel: ctx.localLlmModel,\n    scraperBaseUrl: ctx.scraperBaseUrl,\n    field: extracted.field,\n    value: found ? extracted.value : null,\n    present: found,\n    confidence: extracted.confidence,\n    fieldQuestion: extracted.fieldQuestion,\n    logLevel: found ? 'success' : 'info',\n    logMessage: found\n      ? 'Found \"' + extracted.field + '\" on ' + ctx.pageUrl + ': ' + extracted.value\n      : 'Field \"' + extracted.field + '\" not on ' + ctx.pageUrl,\n  },\n}];"
+        "jsCode": "const ctx = $('Split Fields').item.json;\nconst extracted = $json.body ?? $json;\nconst found = extracted.value != null && String(extracted.value).trim() !== '';\nreturn [{\n  json: {\n    jobId: ctx.jobId,\n    executionId: ctx.executionId,\n    startUrl: ctx.startUrl,\n    pageUrl: ctx.pageUrl,\n    summary: ctx.summary,\n    directions: ctx.directions,\n    summarizePrompt: ctx.summarizePrompt,\n    fieldPrompt: ctx.fieldPrompt,\n    localLlmModel: ctx.localLlmModel,\n    scraperBaseUrl: ctx.scraperBaseUrl,\n    field: extracted.field,\n    value: found ? extracted.value : null,\n    present: found,\n    confidence: extracted.confidence,\n    fieldQuestion: extracted.fieldQuestion,\n    logLevel: found ? 'success' : 'info',\n    logMessage: found\n      ? 'Found \"' + extracted.field + '\" on ' + ctx.pageUrl + ': ' + extracted.value\n      : 'Field \"' + extracted.field + '\" not on ' + ctx.pageUrl,\n  },\n}];"
       },
       "id": "a1b2c3d4-0015-4000-8000-000000000015",
       "name": "Merge Field Result",
@@ -214,7 +225,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all().map((item) => item.json);\nconst config = $('After Spider').first()?.json ?? items[0] ?? {};\nconst requestedFields = config.fields ?? [];\n\nif (items.length === 0) {\n  return [{\n    json: {\n      jobId: config.jobId,\n      startUrl: config.startUrl,\n      requestedFields,\n      findings: [],\n      pageResults: [],\n      directions: config.directions,\n      summarizePrompt: config.summarizePrompt,\n      fieldPrompt: config.fieldPrompt,\n      localLlmModel: config.localLlmModel,\n      scraperBaseUrl: config.scraperBaseUrl,\n      emptySite: true,\n    },\n  }];\n}\n\nconst findings = [];\nconst byPage = new Map();\n\nfor (const item of items) {\n  if (!byPage.has(item.pageUrl)) {\n    byPage.set(item.pageUrl, {\n      pageUrl: item.pageUrl,\n      summary: item.summary,\n      fields: [],\n    });\n  }\n  const present = item.present === true;\n  byPage.get(item.pageUrl).fields.push({\n    field: item.field,\n    value: present ? item.value : null,\n    confidence: item.confidence ?? 'unknown',\n    sourcePages: present ? [item.pageUrl] : [],\n  });\n  if (present) {\n    findings.push({\n      field: item.field,\n      value: String(item.value),\n      pageUrl: item.pageUrl,\n      confidence: item.confidence,\n    });\n  }\n}\n\nconst first = items[0];\nreturn [{\n  json: {\n    jobId: first.jobId,\n    startUrl: first.startUrl,\n    requestedFields,\n    findings,\n    pageResults: Array.from(byPage.values()),\n    directions: first.directions,\n    summarizePrompt: first.summarizePrompt,\n    fieldPrompt: first.fieldPrompt,\n    localLlmModel: first.localLlmModel,\n    scraperBaseUrl: first.scraperBaseUrl,\n    emptySite: false,\n  },\n}];"
+        "jsCode": "const items = $input.all().map((item) => item.json);\nconst config = $('After Spider').first()?.json ?? items[0] ?? {};\nconst outputFields = config.outputFields ?? [];\nconst requestedFields = outputFields.map((f) => f.field_name);\n\nif (items.length === 0) {\n  return [{\n    json: {\n      jobId: config.jobId,\n      executionId: config.executionId,\n      startUrl: config.startUrl,\n      requestedFields,\n      results: [],\n      findings: [],\n      pageResults: [],\n      scraperBaseUrl: config.scraperBaseUrl,\n      emptySite: true,\n    },\n  }];\n}\n\nconst findings = [];\nconst results = [];\nconst byPage = new Map();\n\nfor (const item of items) {\n  if (!byPage.has(item.pageUrl)) {\n    byPage.set(item.pageUrl, {\n      pageUrl: item.pageUrl,\n      summary: item.summary,\n      fields: [],\n    });\n  }\n  const present = item.present === true;\n  byPage.get(item.pageUrl).fields.push({\n    field: item.field,\n    value: present ? item.value : null,\n    confidence: item.confidence ?? 'unknown',\n    sourcePages: present ? [item.pageUrl] : [],\n  });\n  if (present) {\n    findings.push({\n      field: item.field,\n      value: String(item.value),\n      pageUrl: item.pageUrl,\n      confidence: item.confidence,\n    });\n    results.push({\n      page_url: item.pageUrl,\n      field_name: item.field,\n      field_value: String(item.value),\n    });\n  }\n}\n\nconst first = items[0];\nreturn [{\n  json: {\n    jobId: first.jobId,\n    executionId: first.executionId,\n    startUrl: first.startUrl,\n    requestedFields,\n    results,\n    findings,\n    pageResults: Array.from(byPage.values()),\n    scraperBaseUrl: first.scraperBaseUrl,\n    emptySite: false,\n  },\n}];"
       },
       "id": "a1b2c3d4-0017-4000-8000-000000000017",
       "name": "Aggregate Results",
@@ -225,21 +236,21 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.scraperBaseUrl }}/api/workflow/save-result",
+        "url": "={{ $json.scraperBaseUrl }}/api/workflow/save-execution",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ startUrl: $json.startUrl, requestedFields: $json.requestedFields, findings: $json.findings, pageResults: $json.pageResults, directions: $json.directions, summarizePrompt: $json.summarizePrompt || undefined, fieldPrompt: $json.fieldPrompt || undefined, localLlmModel: $json.localLlmModel }) }}",
+        "jsonBody": "={{ JSON.stringify({ execution_id: $json.executionId, results: $json.results ?? [], startUrl: $json.startUrl }) }}",
         "options": {}
       },
       "id": "a1b2c3d4-0018-4000-8000-000000000018",
-      "name": "Save JSON Output",
+      "name": "Save Execution",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [3740, 300]
     },
     {
       "parameters": {
-        "jsCode": "const saved = $json;\nconst source = $('Aggregate Results').first()?.json ?? $('Prepare Empty Save').first()?.json ?? $('After Spider').first()?.json;\nconst emptySite = Boolean(source?.emptySite);\nreturn [{\n  json: {\n    jobId: source.jobId,\n    scraperBaseUrl: source.scraperBaseUrl,\n    startUrl: source.startUrl,\n    outputPath: saved.outputPath,\n    message: emptySite ? 'No pages scraped for ' + source.startUrl : 'Saved output to ' + saved.outputPath,\n    level: emptySite ? 'warn' : 'success',\n  },\n}];"
+        "jsCode": "const saved = $json;\nconst source = $('Aggregate Results').first()?.json ?? $('Prepare Empty Save').first()?.json ?? $('After Spider').first()?.json;\nconst emptySite = Boolean(source?.emptySite);\nreturn [{\n  json: {\n    jobId: source.jobId,\n    executionId: source.executionId,\n    scraperBaseUrl: source.scraperBaseUrl,\n    startUrl: source.startUrl,\n    resultsCount: saved.resultsCount ?? 0,\n    message: emptySite\n      ? 'No pages scraped for ' + source.startUrl\n      : 'Saved ' + (saved.resultsCount ?? 0) + ' result(s) to execution ' + source.executionId,\n    level: emptySite ? 'warn' : 'success',\n  },\n}];"
       },
       "id": "a1b2c3d4-0019-4000-8000-000000000019",
       "name": "After Save",
@@ -304,7 +315,7 @@
       ]
     },
     "Prepare Empty Save": {
-      "main": [[{ "node": "Save JSON Output", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Save Execution", "type": "main", "index": 0 }]]
     },
     "Split Pages": {
       "main": [[{ "node": "Scrape Pages", "type": "main", "index": 0 }]]
@@ -313,6 +324,9 @@
       "main": [[{ "node": "Summarize Pages", "type": "main", "index": 0 }]]
     },
     "Summarize Pages": {
+      "main": [[{ "node": "Save Scrapes", "type": "main", "index": 0 }]]
+    },
+    "Save Scrapes": {
       "main": [[{ "node": "Split Fields", "type": "main", "index": 0 }]]
     },
     "Split Fields": {
@@ -331,9 +345,9 @@
       "main": [[{ "node": "Aggregate Results", "type": "main", "index": 0 }]]
     },
     "Aggregate Results": {
-      "main": [[{ "node": "Save JSON Output", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Save Execution", "type": "main", "index": 0 }]]
     },
-    "Save JSON Output": {
+    "Save Execution": {
       "main": [[{ "node": "After Save", "type": "main", "index": 0 }]]
     },
     "After Save": {

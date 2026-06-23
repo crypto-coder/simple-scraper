@@ -20,7 +20,7 @@ export class ScraperSidebarComponent {
   @Output() newProject = new EventEmitter<void>();
 
   projectsOpen = true;
-  executionsOpen = true;
+  executionsOpen = false;
 
   toggleProjects(): void {
     this.projectsOpen = !this.projectsOpen;

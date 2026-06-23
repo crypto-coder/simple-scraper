@@ -10,6 +10,8 @@ import {
   type FieldFinding,
   type PageWorkflowResult,
 } from '../services/workflowEngine';
+import { appendExecutionResults, saveScrapeRecord } from '../services/workflowCouch';
+import type { Result } from '../types/records';
 
 export const workflowRouter = Router();
 
@@ -102,7 +104,7 @@ workflowRouter.post('/summarize', async (req, res) => {
 
 workflowRouter.post('/extract-field', async (req, res) => {
   try {
-    const { field, context, directions, summarizePrompt, fieldPrompt, localLlmModel } =
+    const { field, context, directions, summarizePrompt, fieldPrompt, localLlmModel, extractHint } =
       req.body as {
         field?: string;
         context?: string;
@@ -110,6 +112,7 @@ workflowRouter.post('/extract-field', async (req, res) => {
         summarizePrompt?: string;
         fieldPrompt?: string;
         localLlmModel?: string;
+        extractHint?: string;
       };
     if (!field?.trim()) {
       res.status(400).json({ error: 'field is required' });
@@ -124,8 +127,57 @@ workflowRouter.post('/extract-field', async (req, res) => {
       summarizePrompt,
       fieldPrompt,
       localLlmModel,
+      extractHint,
     });
     res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: msg });
+  }
+});
+
+workflowRouter.post('/save-scrape', async (req, res) => {
+  try {
+    const { execution_id, page_url, scraped_text, summarized_text } = req.body as {
+      execution_id?: string;
+      page_url?: string;
+      scraped_text?: string;
+      summarized_text?: string;
+    };
+    if (!execution_id?.trim()) {
+      res.status(400).json({ error: 'execution_id is required' });
+      return;
+    }
+    if (!page_url?.trim()) {
+      res.status(400).json({ error: 'page_url is required' });
+      return;
+    }
+    const scrape = await saveScrapeRecord({
+      execution_id: execution_id.trim(),
+      page_url: page_url.trim(),
+      scraped_text: scraped_text ?? '',
+      summarized_text: summarized_text ?? '',
+    });
+    res.status(201).json(scrape);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: msg });
+  }
+});
+
+workflowRouter.post('/save-execution', async (req, res) => {
+  try {
+    const { execution_id, results, startUrl } = req.body as {
+      execution_id?: string;
+      results?: Result[];
+      startUrl?: string;
+    };
+    if (!execution_id?.trim()) {
+      res.status(400).json({ error: 'execution_id is required' });
+      return;
+    }
+    const saved = await appendExecutionResults(execution_id.trim(), results ?? []);
+    res.json({ ...saved, startUrl: startUrl ?? null });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: msg });

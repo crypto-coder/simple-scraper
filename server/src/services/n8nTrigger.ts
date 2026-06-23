@@ -1,7 +1,13 @@
+import { randomUUID } from 'crypto';
 import { DEFAULT_FIELD_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from '../prompts';
-import type { ScrapeRequest } from '../types';
+import type { Project, ScrapeRequest } from '../types';
 
-export async function triggerScrapeWorkflow(jobId: string, request: ScrapeRequest): Promise<void> {
+export async function triggerScrapeWorkflow(
+  jobId: string,
+  request: ScrapeRequest,
+  executionId: string,
+  project: Project
+): Promise<void> {
   const webhookUrl =
     process.env.N8N_WEBHOOK_SCRAPE_URL ?? 'http://n8n:5678/webhook/scrape';
 
@@ -13,12 +19,15 @@ export async function triggerScrapeWorkflow(jobId: string, request: ScrapeReques
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       jobId,
-      urls: request.urls,
-      fields: request.fields,
-      prompt: request.prompt,
-      summarizePrompt: request.summarizePrompt || DEFAULT_SUMMARIZE_PROMPT,
-      fieldPrompt: request.fieldPrompt || DEFAULT_FIELD_PROMPT,
-      localLlmModel: request.localLlmModel,
+      executionId,
+      project,
+      urls: project.website_urls,
+      fields: project.output_fields.map((f) => f.field_name),
+      outputFields: project.output_fields,
+      prompt: project.main_prompt,
+      summarizePrompt: project.summarize_prompt || DEFAULT_SUMMARIZE_PROMPT,
+      fieldPrompt: project.field_extract_prompt || DEFAULT_FIELD_PROMPT,
+      localLlmModel: project.local_llm,
       scraperBaseUrl,
     }),
   });
@@ -27,4 +36,21 @@ export async function triggerScrapeWorkflow(jobId: string, request: ScrapeReques
     const text = await res.text();
     throw new Error(`n8n webhook failed (${res.status}): ${text}`);
   }
+}
+
+export function projectFromScrapeRequest(request: ScrapeRequest): Project {
+  if (request.project) {
+    return request.project;
+  }
+
+  return {
+    project_id: randomUUID(),
+    project_name: 'Untitled project',
+    website_urls: request.urls,
+    output_fields: request.fields.map((field_name) => ({ field_name, extract_hint: '' })),
+    main_prompt: request.prompt,
+    summarize_prompt: request.summarizePrompt,
+    field_extract_prompt: request.fieldPrompt,
+    local_llm: request.localLlmModel,
+  };
 }

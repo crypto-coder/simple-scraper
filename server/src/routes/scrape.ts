@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { jobManager } from '../services/jobManager';
 import { DEFAULT_FIELD_PROMPT, DEFAULT_SUMMARIZE_PROMPT } from '../prompts';
 import { LOCAL_LLM_OPTIONS, type ScrapeRequest } from '../types';
+import { projectFromScrapeRequest } from '../services/n8nTrigger';
 
 export const scrapeRouter = Router();
 
@@ -41,22 +42,25 @@ scrapeRouter.get('/progress/stream', (req, res) => {
 scrapeRouter.post('/start', async (req, res) => {
   try {
     const body = req.body as ScrapeRequest;
-    if (!body.urls?.length) {
+    const project = body.project ? body.project : projectFromScrapeRequest(body);
+
+    if (!project.website_urls?.length) {
       res.status(400).json({ error: 'At least one URL is required' });
       return;
     }
-    if (!body.fields?.length) {
+    if (!project.output_fields?.length) {
       res.status(400).json({ error: 'At least one output field is required' });
       return;
     }
 
     const jobId = await jobManager.start({
-      urls: body.urls.map((u) => u.trim()).filter(Boolean),
-      fields: body.fields.map((f) => f.trim()).filter(Boolean),
-      prompt: body.prompt ?? '',
-      summarizePrompt: body.summarizePrompt ?? DEFAULT_SUMMARIZE_PROMPT,
-      fieldPrompt: body.fieldPrompt ?? DEFAULT_FIELD_PROMPT,
-      localLlmModel: body.localLlmModel ?? 'gemma4:e4b',
+      project,
+      urls: project.website_urls,
+      fields: project.output_fields.map((f) => f.field_name),
+      prompt: project.main_prompt,
+      summarizePrompt: project.summarize_prompt ?? DEFAULT_SUMMARIZE_PROMPT,
+      fieldPrompt: project.field_extract_prompt ?? DEFAULT_FIELD_PROMPT,
+      localLlmModel: project.local_llm ?? 'gemma4:e4b',
     });
 
     res.json({ jobId });

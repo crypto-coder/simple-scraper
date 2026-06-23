@@ -12,6 +12,7 @@ export interface WorkflowConfig {
   summarizePrompt?: string;
   fieldPrompt?: string;
   localLlmModel?: string;
+  extractHint?: string;
 }
 
 async function resolveModel(model?: string): Promise<string> {
@@ -54,10 +55,14 @@ export async function workflowExtractField(
   config: WorkflowConfig = {}
 ): Promise<FieldResult & { fieldQuestion: string }> {
   await resolveModel(config.localLlmModel);
+  const hint = config.extractHint?.trim();
+  const directions = hint
+    ? `${config.directions ?? ''}\nExtract hint: ${hint}`.trim()
+    : (config.directions ?? '');
   const answer = await answerFieldQuestion(
     field,
     context,
-    config.directions ?? '',
+    directions,
     config.fieldPrompt ?? DEFAULT_FIELD_PROMPT,
     config.localLlmModel
   );

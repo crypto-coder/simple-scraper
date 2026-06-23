@@ -34,12 +34,13 @@ export interface AppSettings {
 }
 
 export interface ScrapeRequest {
-  urls: string[];
-  fields: string[];
-  prompt: string;
-  summarizePrompt: string;
-  fieldPrompt: string;
-  localLlmModel: string;
+  project: Project;
+  urls?: string[];
+  fields?: string[];
+  prompt?: string;
+  summarizePrompt?: string;
+  fieldPrompt?: string;
+  localLlmModel?: string;
 }
 
 export interface PromptDefaults {

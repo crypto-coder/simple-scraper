@@ -97,6 +97,8 @@ services:
       - ./couchdb/init-databases.sh:/init-databases.sh:ro
     entrypoint: ["/bin/sh", "/init-databases.sh"]
     depends_on:
+      runtime-init:
+        condition: service_completed_successfully
       couchdb:
         condition: service_healthy
     restart: "no"

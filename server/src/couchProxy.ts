@@ -5,9 +5,13 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const DATABASE_PATH = '/database';
 
-/** Fauxton uses absolute paths (e.g. /_utils) without the /database prefix. */
-const COUCH_ROOT_PREFIX =
-  /^\/(_utils|_session|_all_dbs|_membership|_node|_users|_up|_cluster_setup|_db_updates|_active_tasks|_scheduler|_stats|projects|executions)(\/|$)/;
+function isCouchRootPath(pathname: string): boolean {
+  if (pathname === '/projects' || pathname.startsWith('/projects/')) return true;
+  if (pathname === '/executions' || pathname.startsWith('/executions/')) return true;
+  // CouchDB system endpoints (_session, _utils, _uuids, _all_dbs, …)
+  if (/^\/_/.test(pathname)) return true;
+  return false;
+}
 
 function rewriteDatabasePath(path: string): string {
   const rewritten = path.replace(/^\/database\/?/, '/');
@@ -43,7 +47,8 @@ function couchProxyOptions(pathFilter: string | ((pathname: string) => boolean),
 
 export function mountCouchProxy(app: Express): void {
   app.use(createProxyMiddleware(couchProxyOptions(DATABASE_PATH, true)));
-  app.use(createProxyMiddleware(couchProxyOptions((pathname) => COUCH_ROOT_PREFIX.test(pathname))));
+  app.use(createProxyMiddleware(couchProxyOptions(isCouchRootPath)));
 }
 
-export const COUCH_FAUXTON_URL = `${DATABASE_PATH}/_utils/`;
+/** Fauxton at site root — avoids treating /database as a CouchDB database name. */
+export const COUCH_FAUXTON_URL = '/_utils/#/_all_dbs';

@@ -33,7 +33,7 @@ export class DatabaseTabComponent implements OnChanges {
 
     this.http.post<{ ok: boolean }>('/api/database/couch-login', {}, { withCredentials: true }).subscribe({
       next: () => {
-        this.databaseUrl = this.sanitizer.bypassSecurityTrustResourceUrl('/database/_utils/');
+        this.databaseUrl = this.sanitizer.bypassSecurityTrustResourceUrl('/_utils/#/_all_dbs');
         this.loading = false;
       },
       error: (err) => {

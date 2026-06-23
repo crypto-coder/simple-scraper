@@ -12,6 +12,11 @@ until curl -sf "${BASE}/_up" >/dev/null 2>&1; do
   sleep 2
 done
 
+echo "Waiting for CouchDB admin auth..."
+until curl -sf -u "${COUCH_USER}:${COUCH_PASSWORD}" "${BASE}/_all_dbs" >/dev/null 2>&1; do
+  sleep 2
+done
+
 for db in projects executions; do
   code="$(curl -s -o /dev/null -w '%{http_code}' -u "${COUCH_USER}:${COUCH_PASSWORD}" -X PUT "${BASE}/${db}")"
   if [ "$code" = "201" ] || [ "$code" = "412" ]; then

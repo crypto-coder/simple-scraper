@@ -114,7 +114,14 @@ docker compose restart couchdb
 curl -u admin:password http://localhost:3000/database/_all_dbs
 ```
 
-(Through the app proxy; CouchDB is not exposed on a separate host port by default.)
+If the **Database** tab shows repeating `database_does_not_exist` errors, the `projects` / `executions` databases may be missing. Re-run init:
+
+```bash
+docker compose run --rm couchdb-init
+docker compose restart simple-scraper
+```
+
+Or open the Database tab again (login recreates missing databases automatically).
 
 Verify n8n persistence after creating a workflow:
 

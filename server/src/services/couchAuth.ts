@@ -1,5 +1,7 @@
 const COUCHDB_INTERNAL_URL = process.env.COUCHDB_INTERNAL_URL ?? 'http://127.0.0.1:5984';
 
+const APP_DATABASES = ['projects', 'executions'] as const;
+
 export function getCouchCredentials(): { username: string; password: string } {
   return {
     username: process.env.COUCHDB_USER ?? 'admin',
@@ -7,7 +9,29 @@ export function getCouchCredentials(): { username: string; password: string } {
   };
 }
 
+function couchAuthHeader(): string {
+  const { username, password } = getCouchCredentials();
+  return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+}
+
+/** Ensure app databases exist (idempotent). */
+export async function ensureCouchDatabases(): Promise<void> {
+  const auth = couchAuthHeader();
+
+  for (const db of APP_DATABASES) {
+    const res = await fetch(`${COUCHDB_INTERNAL_URL}/${db}`, {
+      method: 'PUT',
+      headers: { Authorization: auth },
+    });
+    if (res.status === 201 || res.status === 412) continue;
+    const text = await res.text();
+    throw new Error(`Failed to create CouchDB database '${db}' (${res.status}): ${text}`);
+  }
+}
+
 export async function loginToCouch(): Promise<string[]> {
+  await ensureCouchDatabases();
+
   const { username, password } = getCouchCredentials();
 
   const res = await fetch(`${COUCHDB_INTERNAL_URL}/_session`, {

@@ -88,7 +88,7 @@ Default credentials are in `config/couchdb.env`:
 - User: `admin`
 - Password: `password`
 
-On first stack start, `couchdb-init` creates two databases:
+On first stack start, `couchdb-init` ensures CouchDB system databases (`_users`, `_replicator`) and app databases exist:
 
 | Database | Document `_id` | Purpose |
 |----------|----------------|---------|
@@ -114,14 +114,20 @@ docker compose restart couchdb
 curl -u admin:password http://localhost:3000/database/_all_dbs
 ```
 
-If the **Database** tab shows repeating `database_does_not_exist` errors, the `projects` / `executions` databases may be missing. Re-run init:
+If CouchDB logs `_users database does not exist` or the **Database** tab shows `database_does_not_exist` errors, re-run init (creates missing system/app DBs and restarts CouchDB if needed):
 
 ```bash
 docker compose run --rm couchdb-init
 docker compose restart simple-scraper
 ```
 
-Or open the Database tab again (login recreates missing databases automatically).
+If errors persist on an existing volume, reset CouchDB data and start fresh:
+
+```bash
+docker compose down
+rm -rf runtime/couchdb
+docker compose up -d
+```
 
 Verify n8n persistence after creating a workflow:
 

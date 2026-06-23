@@ -1,5 +1,6 @@
 const COUCHDB_INTERNAL_URL = process.env.COUCHDB_INTERNAL_URL ?? 'http://127.0.0.1:5984';
 
+const SYSTEM_DATABASES = ['_users', '_replicator'] as const;
 const APP_DATABASES = ['projects', 'executions'] as const;
 
 export function getCouchCredentials(): { username: string; password: string } {
@@ -14,18 +15,58 @@ function couchAuthHeader(): string {
   return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 }
 
-/** Ensure app databases exist (idempotent). */
+async function waitForCouchReady(maxWaitMs = 60_000): Promise<void> {
+  const auth = couchAuthHeader();
+  const deadline = Date.now() + maxWaitMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const up = await fetch(`${COUCHDB_INTERNAL_URL}/_up`);
+      if (!up.ok) {
+        await sleep(2000);
+        continue;
+      }
+      const dbs = await fetch(`${COUCHDB_INTERNAL_URL}/_all_dbs`, {
+        headers: { Authorization: auth },
+      });
+      if (dbs.ok) return;
+    } catch {
+      /* CouchDB may be restarting */
+    }
+    await sleep(2000);
+  }
+
+  throw new Error('CouchDB did not become ready after restart');
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Ensure system and app databases exist (idempotent). */
 export async function ensureCouchDatabases(): Promise<void> {
   const auth = couchAuthHeader();
+  let createdAny = false;
 
-  for (const db of APP_DATABASES) {
-    const res = await fetch(`${COUCHDB_INTERNAL_URL}/${db}`, {
+  for (const db of [...SYSTEM_DATABASES, ...APP_DATABASES]) {
+    const res = await fetch(`${COUCHDB_INTERNAL_URL}/${encodeURIComponent(db)}`, {
       method: 'PUT',
       headers: { Authorization: auth },
     });
+    if (res.status === 201) createdAny = true;
     if (res.status === 201 || res.status === 412) continue;
     const text = await res.text();
     throw new Error(`Failed to create CouchDB database '${db}' (${res.status}): ${text}`);
+  }
+
+  if (createdAny) {
+    const restart = await fetch(`${COUCHDB_INTERNAL_URL}/_restart`, {
+      method: 'POST',
+      headers: { Authorization: auth },
+    });
+    if (restart.ok) {
+      await waitForCouchReady();
+    }
   }
 }
 

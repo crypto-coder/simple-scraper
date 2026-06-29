@@ -38,25 +38,34 @@ export async function saveScrapeRecord(input: {
     summarized_text: input.summarized_text,
   };
   await putDocument('scrapes', scrape_id, scrape as CouchDoc<Scrape>);
-  await appendScrapeToExecution(input.execution_id, scrape_id);
   return scrape;
 }
 
-async function appendScrapeToExecution(executionId: string, scrapeId: string): Promise<void> {
+export async function attachScrapesToExecution(
+  executionId: string,
+  scrapeIds: string[]
+): Promise<{ execution_id: string; scrapesCount: number }> {
+  await ensureCouchDatabases();
+
   const existing = await getDocument<CouchDoc<Execution>>('executions', executionId);
   if (!existing) {
     throw new Error(`Execution '${executionId}' not found`);
   }
 
-  const scrapes = existing.scrapes ?? [];
-  if (scrapes.includes(scrapeId)) {
-    return;
+  const existingScrapes = existing.scrapes ?? [];
+  const mergedScrapes = [...existingScrapes];
+  for (const scrapeId of scrapeIds) {
+    if (!mergedScrapes.includes(scrapeId)) {
+      mergedScrapes.push(scrapeId);
+    }
   }
 
   await putDocument('executions', executionId, {
     ...existing,
-    scrapes: [...scrapes, scrapeId],
+    scrapes: mergedScrapes,
   });
+
+  return { execution_id: executionId, scrapesCount: mergedScrapes.length };
 }
 
 export async function updateScrapeSummarizedText(

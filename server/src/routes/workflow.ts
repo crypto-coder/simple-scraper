@@ -7,7 +7,12 @@ import {
   workflowSpider,
   workflowSummarize,
 } from '../services/workflowEngine';
-import { appendExecutionResults, saveScrapeRecord, updateScrapeSummarizedText } from '../services/workflowCouch';
+import {
+  appendExecutionResults,
+  attachScrapesToExecution,
+  saveScrapeRecord,
+  updateScrapeSummarizedText,
+} from '../services/workflowCouch';
 import type { Result } from '../types/records';
 
 export const workflowRouter = Router();
@@ -79,6 +84,25 @@ workflowRouter.post('/scrape-page', async (req, res) => {
     }
 
     res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: msg });
+  }
+});
+
+workflowRouter.post('/attach-scrapes', async (req, res) => {
+  try {
+    const { execution_id, scrape_ids } = req.body as {
+      execution_id?: string;
+      scrape_ids?: string[];
+    };
+    if (!execution_id?.trim()) {
+      res.status(400).json({ error: 'execution_id is required' });
+      return;
+    }
+    const ids = (scrape_ids ?? []).map((id) => id?.trim()).filter((id): id is string => Boolean(id));
+    const saved = await attachScrapesToExecution(execution_id.trim(), ids);
+    res.json(saved);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: msg });

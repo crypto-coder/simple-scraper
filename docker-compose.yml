@@ -130,6 +130,7 @@ services:
       N8N_DIAGNOSTICS_CONFIG_FRONTEND: ""
       N8N_DIAGNOSTICS_CONFIG_BACKEND: ""
       GENERIC_TIMEZONE: ${TZ:-UTC}
+      N8N_RUNNERS_TASK_TIMEOUT: 86400
     volumes:
       - type: bind
         source: ./runtime/n8n
